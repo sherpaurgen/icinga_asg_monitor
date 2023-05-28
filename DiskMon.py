@@ -5,9 +5,7 @@ from datetime import datetime, timedelta
 import subprocess
 import yaml
 import os
-import sqlite3
 from dbHandler import DbHandler
-from CpuMon import AsgCPUMonitor
 
 class AsgDiskMonitor:
     def __init__(self, asg_name, region_name, mountpath, namespace, metric_name,hosttemplatepath,icingahostfilepath):
@@ -35,6 +33,11 @@ class AsgDiskMonitor:
         return logger
 
     def _get_ec2_from_asg(self):
+        cw_client_asg = boto3.client('autoscaling', region_name=self.region_name)
+        response = cw_client_asg.describe_auto_scaling_groups(AutoScalingGroupNames=[self.asg_name])
+        # return false if the asg name is not found
+        if not response["AutoScalingGroups"]:
+            return (False)
         ASG_EC2S = []
         cloudwatch_client = boto3.client('cloudwatch', region_name=self.region_name)
         resp = cloudwatch_client.list_metrics(
@@ -80,8 +83,6 @@ class AsgDiskMonitor:
                 if item.get('Name') == 'path':
                     mount_point=item.get('Value')
             disk_usage = 0
-            print('From _get_disk_used_percent ---------------')
-            print(ec2metric)
             for point in res['Datapoints']:
                 if 'Average' in point:
                     disk_usage = point['Average']
@@ -168,13 +169,16 @@ class AsgDiskMonitor:
 def startProcessing(ASG_NAME, region_name, mountpath, Namespace,
                           MetricName,hosttemplatepath,
                           icingahostfilepath,db_handler):
+
     adm1 = AsgDiskMonitor(asg_name=ASG_NAME, region_name=region_name, mountpath=mountpath, namespace=Namespace,
                           metric_name=MetricName, hosttemplatepath=hosttemplatepath,
                           icingahostfilepath=icingahostfilepath)
+    adm1._truncate_file()
     ec2_ASG = adm1._get_ec2_from_asg()
     # print("ec2_ASG from startProcessing:")
     # print(ec2_ASG)
-    adm1._truncate_file()
+    if ec2_ASG is False:
+        return
     asgInstanceId = []
     ec2ListRunning = []
     for ec2cwdata in ec2_ASG:
@@ -210,11 +214,11 @@ def startProcessing(ASG_NAME, region_name, mountpath, Namespace,
     ec2ListRunning.clear()
     adm1._reloadIcinga()
 
+
 def main():
     script_home = os.path.dirname(os.path.abspath(__file__))
-    diskmntconfig=script_home+"/monitor_disk.yaml"
-    dbfile=script_home+"/monitoring.db"
-
+    diskmntconfig = script_home+"/monitor_disk.yaml"
+    dbfile = script_home+"/monitoring.db"
     # setupLocalDb(dbfile)
     db_handler=DbHandler(dbfile)
 
@@ -222,13 +226,15 @@ def main():
     with open(diskmntconfig, "r") as f:
         data = yaml.safe_load(f)
         mountpaths = data["mountpath"]
-        # Iterate over the mountpaths
-        for path in mountpaths:
-            print("Mount Path:", path)
-            startProcessing(data["ASG_NAME"], data["region_name"], path, data["Namespace"],
-                          data["MetricName"], data["hosttemplatepath"],
-                         data["icingahostfilepath"],db_handler)
+        for asgname in data["ASG_NAME"]:
+            for path in mountpaths:
+                print("Mount Path:", path)
+                startProcessing(asgname, data["region_name"], path, data["Namespace"],
+                              data["MetricName"], data["hosttemplatepath"],
+                             data["icingahostfilepath"],db_handler)
 
     db_handler.close_connection()
+
+
 if __name__ == "__main__":
     main()
