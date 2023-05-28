@@ -32,38 +32,42 @@ class AsgCPUMonitor:
     def _get_running_instances(self):
         cw_client_asg = boto3.client('autoscaling',region_name=self.region_name)
         response = cw_client_asg.describe_auto_scaling_groups(AutoScalingGroupNames=[self.asg_name])
-        instancestmp = response['AutoScalingGroups'][0]['Instances']
-        print(instancestmp)
-        cw_cli_ec2 = boto3.client('ec2', region_name=self.region_name)
-        running_instances=[]
-        for instance in instancestmp:
-            instance_id = instance['InstanceId']
-            response = cw_cli_ec2.describe_instances(InstanceIds=[instance_id])
-            instance_name = ''
-            if len(response['Reservations']) < 1:
-                return (False)
-            try:
-                for reservation in response['Reservations']:
-                    for instance in reservation['Instances']:
-                        public_ip = instance.get('PublicIpAddress', 'N/A')
-                        dns_name = instance.get('PublicDnsName', 'N/A')
-                        state = instance['State']['Code']
-                        # Get the instance name if its set
-                        for tag in instance['Tags']:
-                            if tag['Key'] == 'Name':
-                                instance_name = tag.get('Value', 'NoHostname')
-                                if len(instance_name) < 1:
+        # return false if the asg name is not found
+        if not response["AutoScalingGroups"]:
+            return(False)
+        else:
+            instancestmp = response['AutoScalingGroups'][0]['Instances']
+            print(instancestmp)
+            cw_cli_ec2 = boto3.client('ec2', region_name=self.region_name)
+            running_instances=[]
+            for instance in instancestmp:
+                instance_id = instance['InstanceId']
+                response = cw_cli_ec2.describe_instances(InstanceIds=[instance_id])
+                instance_name = ''
+                if len(response['Reservations']) < 1:
+                    return (False)
+                try:
+                    for reservation in response['Reservations']:
+                        for instance in reservation['Instances']:
+                            public_ip = instance.get('PublicIpAddress', 'N/A')
+                            dns_name = instance.get('PublicDnsName', 'N/A')
+                            state = instance['State']['Code']
+                            # Get the instance name if its set
+                            for tag in instance['Tags']:
+                                if tag['Key'] == 'Name':
+                                    instance_name = tag.get('Value', 'NoHostname')
+                                    if len(instance_name) < 1:
+                                        instance_name = 'No name specified'
+                                    break
+                                else:
                                     instance_name = 'No name specified'
-                                break
-                            else:
-                                instance_name = 'No name specified'
-                    running_instances.append(
-                        {"instance_id": instance_id, "pub_ip": public_ip, "dns_name": dns_name,
-                         "instance_name": instance_name,
-                         "state": state})
-            except Exception as e:
-                self.logger.warning("_get_ec2_detail Error:" + str(e))
-        return(running_instances)
+                        running_instances.append(
+                            {"instance_id": instance_id, "pub_ip": public_ip, "dns_name": dns_name,
+                             "instance_name": instance_name,
+                             "state": state})
+                except Exception as e:
+                    self.logger.warning("_get_ec2_detail Error:" + str(e))
+            return(running_instances)
 
     def _get_cpu_utilization(self,running_instances,db_handler):
         cw_cli = boto3.client('cloudwatch',region_name=self.region_name)
@@ -78,7 +82,6 @@ class AsgCPUMonitor:
                 Period=300,
                 Statistics=['Average']
             )
-            print("The Rres:")
             cpuusage=response["Datapoints"][0].get("Average",0)
             data = {"instance_id": instance["instance_id"], "cpuusage": cpuusage, "asgname": self.asg_name,"region_name":self.region_name}
             db_handler.insert_cpuusage_data(data)
@@ -96,7 +99,10 @@ def main():
             obj = AsgCPUMonitor(asgname,region_name, namespace, metricname)
             db_handler = DbHandler(dbfile)
             runninginstances = obj._get_running_instances()
-            obj._get_cpu_utilization(runninginstances, db_handler)
+            if runninginstances is False:
+                continue
+            else:
+                obj._get_cpu_utilization(runninginstances, db_handler)
 
 
     db_handler.close_connection()
