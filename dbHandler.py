@@ -6,7 +6,7 @@ class DbHandler:
         self.cursor = self.conn.cursor()
         self.create_diskusage_table()
         self.create_cpuusage_table()
-        self.dblogger =self.create_logger()
+        self.dblogger = self.create_logger()
 
     def create_logger(self):
         logger = logging.getLogger(__name__)
@@ -32,7 +32,7 @@ class DbHandler:
                                 )''')
             self.conn.commit()
         except Exception as e:
-            self.dblogger("DB Error, create_diskusage_table: " + str(e))
+            self.dblogger.warning("DB Error, create_diskusage_table: " + str(e))
 
     def create_cpuusage_table(self):
         try:
@@ -45,15 +45,15 @@ class DbHandler:
                                 )''')
             self.conn.commit()
         except Exception as e:
-            self.dblogger("DB Error, create_cpuusage_table: " + str(e))
+            self.dblogger.warning("DB Error, create_cpuusage_table: " + str(e))
 
     def insert_diskusage_data(self, data):
         try:
-            self.cursor.execute("INSERT INTO disk_usage (instance_id, DiskUsage, MountPoint,asg_name,region_name) VALUES (?, ?, ?)",
-                            (data["instance_id"], data["DiskUsage"], data["MountPoint"],data["asg_name",data["region_name"]]))
+            self.cursor.execute("INSERT INTO disk_usage (instance_id, DiskUsage, MountPoint,asg_name,region_name) VALUES (?, ?, ?,?,?)",
+                            (data["instance_id"], data["DiskUsage"], data["MountPoint"],data["asg_name"],data["region_name"]))
             self.conn.commit()
         except Exception as e:
-            self.dblogger("DB Error, insert_diskusage_data: " + str(e))
+            self.dblogger.warning("DB Error, insert_diskusage_data: " + str(e))
 
     def insert_cpuusage_data(self, data):
         try:
@@ -61,10 +61,10 @@ class DbHandler:
                             (data["instance_id"], data["cpuusage"], data["asgname"]))
             self.conn.commit()
         except Exception as e:
-            self.dblogger("DB Error, insert_diskusage_data: " + str(e))
+            self.dblogger.warning("DB Error, insert_diskusage_data: " + str(e))
 
     def close_connection(self):
         try:
             self.conn.close()
         except Exception as e:
-            self.dblogger("DB Error, close_connection: " + str(e))
+            self.dblogger.warning("DB Error, close_connection: " + str(e))

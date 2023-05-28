@@ -20,7 +20,6 @@ class AsgDiskMonitor:
 
 
     def _create_logger(self):
-
         logger = logging.getLogger(__name__)
         logger.setLevel(logging.INFO)
         formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s",'%Y-%m-%d %H:%M:%S')
@@ -85,10 +84,11 @@ class AsgDiskMonitor:
                 if 'Average' in point:
                     disk_usage = point['Average']
                     break
-            data = {"instance_id": instance_id, "DiskUsage": disk_usage,"MountPoint": mount_point,"asg_name":self.asg_name,"region_name":self.region_name }
+            data = {"instance_id": instance_id, "DiskUsage": disk_usage,"MountPoint": mount_point,
+                    "asg_name":self.asg_name, "region_name":self.region_name }
             db_handler.insert_diskusage_data(data)
         except Exception as e:
-            self.logger.warning("_get_disk_used_percent Failed: " + str(e))
+            print("_get_disk_used_percent Failed: " + str(e))
 
     def _get_ec2_detail(self,instance_id):
         ec2_client = boto3.client('ec2', self.region_name)
