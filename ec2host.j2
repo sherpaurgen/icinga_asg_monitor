@@ -1,0 +1,16 @@
+object Host "{{ hostname }}" {
+    import "generic-host"
+    address = "{{ address }}"
+    vars.aws_ec2 = true
+    vars.dontping = true
+    vars.os = "Linux"
+    vars.instance_id = "{{ instance_id }}"
+    vars.asg_name = "{{ asg_name }}"
+    enable_active_checks = false
+}
+
+/* * * * * * * * * * * * * * * * */
+
+
+
+ 
