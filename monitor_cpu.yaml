@@ -1,12 +1,6 @@
 icingahostfilepath: '/tmp/ASG_EC2_Host.conf'
 hosttemplatepath: '/tmp/ec2host.j2'
+ASG_NAME: 'AsgUsh'
 region_name: 'us-west-2'
 Namespace: 'CWAgent'
 MetricName: 'disk_used_percent'
-ASG_NAME:
-  - 'AsgUsh'
-  - 'testASG'
-mountpath:
-  - '/mydata'
-  - '/'
-

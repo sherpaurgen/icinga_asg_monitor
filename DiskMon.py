@@ -3,11 +3,11 @@ import logging
 from jinja2 import Template
 from datetime import datetime, timedelta
 import subprocess
-import json
 import yaml
 import os
 import sqlite3
 from dbHandler import DbHandler
+from CpuMon import AsgCPUMonitor
 
 class AsgDiskMonitor:
     def __init__(self, asg_name, region_name, mountpath, namespace, metric_name,hosttemplatepath,icingahostfilepath):
@@ -87,7 +87,7 @@ class AsgDiskMonitor:
                     disk_usage = point['Average']
                     break
             data = {"instance_id": instance_id, "DiskUsage": disk_usage,"MountPoint": mount_point }
-            db_handler.insert_data(data)
+            db_handler.insert_diskusage_data(data)
             # with open("/tmp/" + instance_id + ".json", 'w') as fh:
             #     json.dump(data, fh)
         except Exception as e:
