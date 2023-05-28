@@ -86,7 +86,7 @@ class AsgDiskMonitor:
                 if 'Average' in point:
                     disk_usage = point['Average']
                     break
-            data = {"instance_id": instance_id, "DiskUsage": disk_usage,"MountPoint": mount_point }
+            data = {"instance_id": instance_id, "DiskUsage": disk_usage,"MountPoint": mount_point,"asg_name":self.asg_name,"region_name":self.region_name }
             db_handler.insert_diskusage_data(data)
             # with open("/tmp/" + instance_id + ".json", 'w') as fh:
             #     json.dump(data, fh)
@@ -163,17 +163,6 @@ class AsgDiskMonitor:
                 self.logger.warning(f"reloadIcinga: Command '{command2}' failed with exit code {e.returncode}")
             else:
                 self.logger.warning("Icinga2 Reloaded Successfully")
-
-def setupLocalDb(dbfilepath):
-        conn = sqlite3.connect(dbfilepath)
-        cursor = conn.cursor()
-        cursor.execute('''CREATE TABLE IF NOT EXISTS disk_usage (
-                            instance_id TEXT,
-                            DiskUsage REAL,
-                            MountPoint TEXT
-                        )''')
-        conn.commit()
-        conn.close()
 
 
 def startProcessing(ASG_NAME, region_name, mountpath, Namespace,

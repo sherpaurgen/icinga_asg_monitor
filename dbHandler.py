@@ -26,7 +26,9 @@ class DbHandler:
             id INTEGER PRIMARY KEY AUTOINCREMENT,
                                     instance_id TEXT,
                                     DiskUsage REAL,
-                                    MountPoint TEXT
+                                    MountPoint TEXT,
+                                    asg_name TEXT,
+                                    region_name TEXT
                                 )''')
             self.conn.commit()
         except Exception as e:
@@ -38,7 +40,8 @@ class DbHandler:
             id INTEGER PRIMARY KEY AUTOINCREMENT,
                                     instance_id TEXT,
                                     cpuusage REAL,
-                                    asgname TEXT
+                                    asgname TEXT,
+                                    region_name TEXT
                                 )''')
             self.conn.commit()
         except Exception as e:

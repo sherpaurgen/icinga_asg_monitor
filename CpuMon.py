@@ -80,18 +80,27 @@ class AsgCPUMonitor:
             )
             print("The Rres:")
             cpuusage=response["Datapoints"][0].get("Average",0)
-            data = {"instance_id": instance["instance_id"], "cpuusage": cpuusage, "asgname": self.asg_name}
-
+            data = {"instance_id": instance["instance_id"], "cpuusage": cpuusage, "asgname": self.asg_name,"region_name":self.region_name}
             db_handler.insert_cpuusage_data(data)
 
 def main():
-    obj=AsgCPUMonitor("AsgUsh", "us-west-2", "AWS/EC2", "CPUUtilization")
     script_home = os.path.dirname(os.path.abspath(__file__))
     dbfile = script_home + "/monitoring.db"
-    db_handler = DbHandler(dbfile)
-    runninginstances = obj._get_running_instances()
-    obj._get_cpu_utilization(runninginstances,db_handler)
+    cpumonconfig = script_home + "/monitor_cpu.yaml"
+    namespace = "AWS/EC2"
+    metricname = "CPUUtilization"
+    region_name= "us-west-2"
+    with open(cpumonconfig, "r") as f:
+        data = yaml.safe_load(f)
+        for asgname in data['ASG_NAME']:
+            obj = AsgCPUMonitor(asgname,region_name, namespace, metricname)
+            db_handler = DbHandler(dbfile)
+            runninginstances = obj._get_running_instances()
+            obj._get_cpu_utilization(runninginstances, db_handler)
+
+
     db_handler.close_connection()
+
 if __name__ == "__main__":
         main()
 
