@@ -86,11 +86,7 @@ class AsgDiskMonitor:
                     disk_usage = point['Average']
                     break
             data = {"instance_id": instance_id, "DiskUsage": disk_usage,"MountPoint": mount_point,"asg_name":self.asg_name,"region_name":self.region_name }
-            print("data from"+self.asg_name)
-            print(data)
             db_handler.insert_diskusage_data(data)
-            # with open("/tmp/" + instance_id + ".json", 'w') as fh:
-            #     json.dump(data, fh)
         except Exception as e:
             self.logger.warning("_get_disk_used_percent Failed: " + str(e))
 
@@ -149,7 +145,7 @@ class AsgDiskMonitor:
 
     def _reloadIcinga(self):
         # command1 = "/usr/sbin/icinga2 daemon -C"
-        command1 = "echo cmd1"
+        command1 = "echo"
         try:
             subprocess.run(command1, shell=True, check=True)
         except subprocess.CalledProcessError as e:
@@ -157,7 +153,7 @@ class AsgDiskMonitor:
         else:
             # Run the second command if the first command succeeded
             # command2 = "sudo systemctl reload icinga2"
-            command2 = "echo cmd2"
+            command2 = "echo"
             try:
                 subprocess.run(command2, shell=True, check=True)
             except subprocess.CalledProcessError as e:
@@ -184,8 +180,7 @@ def startProcessing(ASG_NAME, region_name, mountpath, Namespace,
         return
     adm1._truncate_file()
     ec2_ASG = adm1._get_ec2_from_asg()
-    print("ec2_ASG list from startProcessing:")
-    print(ec2_ASG)
+
     if ec2_ASG is False:
         return
     asgInstanceId = []
@@ -200,7 +195,6 @@ def startProcessing(ASG_NAME, region_name, mountpath, Namespace,
     if len(asgInstanceId) > 0:
         for instanceid in asgInstanceId:
             instanceData = adm1._get_ec2_detail(instanceid)
-            print("CheckInstanceData :" + str(instanceData))
             # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2/client/describe_instance_status.html
             # 16 is equivalent to running state
             if instanceData and instanceData['state'] == 16:
@@ -222,8 +216,6 @@ def startProcessing(ASG_NAME, region_name, mountpath, Namespace,
                         continue
     ec2ListRunning.clear()
     adm1._reloadIcinga()
-
-
 
 def main():
     script_home = os.path.dirname(os.path.abspath(__file__))

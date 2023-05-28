@@ -49,8 +49,8 @@ class DbHandler:
 
     def insert_diskusage_data(self, data):
         try:
-            self.cursor.execute("INSERT INTO disk_usage (instance_id, DiskUsage, MountPoint) VALUES (?, ?, ?)",
-                            (data["instance_id"], data["DiskUsage"], data["MountPoint"]))
+            self.cursor.execute("INSERT INTO disk_usage (instance_id, DiskUsage, MountPoint,asg_name,region_name) VALUES (?, ?, ?)",
+                            (data["instance_id"], data["DiskUsage"], data["MountPoint"],data["asg_name",data["region_name"]]))
             self.conn.commit()
         except Exception as e:
             self.dblogger("DB Error, insert_diskusage_data: " + str(e))
