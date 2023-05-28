@@ -8,7 +8,7 @@ import os
 from dbHandler import DbHandler
 
 class AsgDiskMonitor:
-    def __init__(self, asg_name, region_name, mountpath, namespace, metric_name,hosttemplatepath,icingahostfilepath):
+    def __init__(self, asg_name, region_name, mountpath,namespace ,metric_name, hosttemplatepath, icingahostfilepath):
         self.asg_name = asg_name
         self.region_name = region_name
         self.mountpath = mountpath
@@ -33,6 +33,7 @@ class AsgDiskMonitor:
         return logger
 
     def _get_ec2_from_asg(self):
+        # verifying if ASG is has at least 1 instance
         cw_client_asg = boto3.client('autoscaling', region_name=self.region_name)
         response = cw_client_asg.describe_auto_scaling_groups(AutoScalingGroupNames=[self.asg_name])
         # return false if the asg name is not found
@@ -44,9 +45,6 @@ class AsgDiskMonitor:
             Namespace=self.namespace,
             MetricName=self.metric_name
         )
-        # print("getEC2FROM ASG\n")
-        # print(resp)
-        # print()
         if "Metrics" in resp:
             self.logger.warning("Metrics found in the GET request")
             for metric in resp["Metrics"]:
@@ -88,6 +86,8 @@ class AsgDiskMonitor:
                     disk_usage = point['Average']
                     break
             data = {"instance_id": instance_id, "DiskUsage": disk_usage,"MountPoint": mount_point,"asg_name":self.asg_name,"region_name":self.region_name }
+            print("data from"+self.asg_name)
+            print(data)
             db_handler.insert_diskusage_data(data)
             # with open("/tmp/" + instance_id + ".json", 'w') as fh:
             #     json.dump(data, fh)
@@ -165,18 +165,27 @@ class AsgDiskMonitor:
             else:
                 self.logger.warning("Icinga2 Reloaded Successfully")
 
+    def verify_asg(self):
+        cw_client_asg = boto3.client('autoscaling', region_name=self.region_name)
+        response = cw_client_asg.describe_auto_scaling_groups(AutoScalingGroupNames=[self.asg_name])
+        # return false if the asg name is not found
+        if not response["AutoScalingGroups"]:
+            return (False)
+        else:
+            return (True)
 
 def startProcessing(ASG_NAME, region_name, mountpath, Namespace,
                           MetricName,hosttemplatepath,
                           icingahostfilepath,db_handler):
-
     adm1 = AsgDiskMonitor(asg_name=ASG_NAME, region_name=region_name, mountpath=mountpath, namespace=Namespace,
                           metric_name=MetricName, hosttemplatepath=hosttemplatepath,
                           icingahostfilepath=icingahostfilepath)
+    if adm1.verify_asg() is False:
+        return
     adm1._truncate_file()
     ec2_ASG = adm1._get_ec2_from_asg()
-    # print("ec2_ASG from startProcessing:")
-    # print(ec2_ASG)
+    print("ec2_ASG list from startProcessing:")
+    print(ec2_ASG)
     if ec2_ASG is False:
         return
     asgInstanceId = []
@@ -215,6 +224,7 @@ def startProcessing(ASG_NAME, region_name, mountpath, Namespace,
     adm1._reloadIcinga()
 
 
+
 def main():
     script_home = os.path.dirname(os.path.abspath(__file__))
     diskmntconfig = script_home+"/monitor_disk.yaml"
@@ -226,6 +236,7 @@ def main():
     with open(diskmntconfig, "r") as f:
         data = yaml.safe_load(f)
         mountpaths = data["mountpath"]
+        # return false if the asg name is not found
         for asgname in data["ASG_NAME"]:
             for path in mountpaths:
                 print("Mount Path:", path)
