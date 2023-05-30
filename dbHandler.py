@@ -54,7 +54,7 @@ class DbHandler:
             self.dblogger.warning("DB Error, create_memusage_table: " + str(e))
     def insert_memusage_data(self, data):
         try:
-            self.cursor.execute("INSERT INTO mem_usage (instance_id,public_ip, memusage,total_memory, asgname,region_name) VALUES (?,?,?,?,?,?)",
+            self.cursor.execute("INSERT INTO mem_usage (instance_id,public_ip, memusage,total_memory, asg_name,region_name) VALUES (?,?,?,?,?,?)",
                             (data["instance_id"], data["public_ip"], data["memusage"],data["total_memory"], data["asg_name"],data["region_name"]))
             self.conn.commit()
         except Exception as e:
