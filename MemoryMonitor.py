@@ -79,6 +79,25 @@ class AsgMemoryMonitor:
             self.logger("Exception in _get_running_ec2 :" + str(e))
         return(runningec2)
 
+    def _get_memory_usage(self,ecm):
+        start_time = datetime.utcnow() - timedelta(minutes=5)
+        end_time = datetime.utcnow()
+        period = 300
+        cloudwatch = boto3.client('cloudwatch', region_name=self.region_name)
+        res = cloudwatch.get_metric_statistics(
+            Namespace=ecm['Namespace'],
+            MetricName=ecm['MetricName'],
+            Dimensions=ecm['Dimensions'],
+            StartTime=start_time,
+            EndTime=end_time,
+            Period=period,
+            Statistics=['Average']
+        )
+        if len(res["Datapoints"])>0:
+            memusageavgpct=res["Datapoints"][0]['Average']
+
+
+
 def startProcessing(ASG_NAME, region_name, Namespace,
                           MetricName,hosttemplatepath,
                           icingahostfilepath,db_handler):
@@ -95,7 +114,9 @@ def startProcessing(ASG_NAME, region_name, Namespace,
         for dim in metric_list_with_asgec2:
             if dim["Dimensions"][0]["Value"] == id:
                 running_ec2_metric_list.append(dim)
-    print(running_ec2_metric_list)
+
+    for ecm in running_ec2_metric_list:
+        adm1._get_memory_usage(ecm)
 
 
 

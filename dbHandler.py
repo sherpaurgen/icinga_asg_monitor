@@ -6,6 +6,7 @@ class DbHandler:
         self.cursor = self.conn.cursor()
         self.create_diskusage_table()
         self.create_cpuusage_table()
+        self.create_memusage_table()
         self.dblogger = self.create_logger()
 
     def create_logger(self):
@@ -34,6 +35,20 @@ class DbHandler:
         except Exception as e:
             self.dblogger.warning("DB Error, create_diskusage_table: " + str(e))
 
+    def create_memusage_table(self):
+        try:
+            self.cursor.execute('''CREATE TABLE IF NOT EXISTS mem_usage (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                    instance_id TEXT,
+                                    memusage REAL,
+                                    totalmem REAL ,
+                                    asg_name TEXT,
+                                    region_name TEXT
+                                )''')
+            self.conn.commit()
+        except Exception as e:
+            self.dblogger.warning("DB Error, create_memusage_table: " + str(e))
+
     def create_cpuusage_table(self):
         try:
             self.cursor.execute('''CREATE TABLE IF NOT EXISTS cpu_usage (
@@ -61,7 +76,15 @@ class DbHandler:
                             (data["instance_id"], data["cpuusage"], data["asgname"]))
             self.conn.commit()
         except Exception as e:
-            self.dblogger.warning("DB Error, insert_diskusage_data: " + str(e))
+            self.dblogger.warning("DB Error, insert_memusage_data: " + str(e))
+
+    def insert_memusage_data(self, data):
+        try:
+            self.cursor.execute("INSERT INTO mem_usage (instance_id, memusage, asgname) VALUES (?, ?, ?)",
+                            (data["instance_id"], data["memusage"], data["asgname"]))
+            self.conn.commit()
+        except Exception as e:
+            self.dblogger.warning("DB Error, insert_memusage_data: " + str(e))
 
     def close_connection(self):
         try:
