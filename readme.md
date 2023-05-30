@@ -210,4 +210,21 @@ response from describe_instance_status (gives running ec2 list)
 }
 ```
 
-
+icinga services.conf
+```json
+apply Service "ec2_disk_usage_service_root" {
+  import "generic-service"
+  check_command = "check_ec2_disk_usage_on_rootPartition"
+  vars.arg1 = host.vars.instance_id
+  vars.arg2 = "/"
+  assign where host.vars.asg_name == "AsgUsh"
+}
+```
+commands.conf
+```json
+object CheckCommand "check_ec2_disk_usage_on_rootPartition" {
+  import "plugin-check-command"
+  command = ["/code/monit/checkDiskUsage.py","$arg1$","$arg2$"]
+  timeout = 60s
+}
+```
