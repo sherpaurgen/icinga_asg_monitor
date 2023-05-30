@@ -38,6 +38,9 @@ class AsgDiskMonitor:
         # return false if the asg name is not found
         if not response["AutoScalingGroups"]:
             return (False)
+        print('------response of _get_ec2_from_asg')
+        print(response)
+        print('------END response of _get_ec2_from_asg')
         ASG_EC2S = []
         cloudwatch_client = boto3.client('cloudwatch', region_name=self.region_name)
         resp = cloudwatch_client.list_metrics(
@@ -74,12 +77,14 @@ class AsgDiskMonitor:
             )
             instance_id = ""
             mount_point= ""
+            # getting id and mount point
             for item in ec2metric['Dimensions']:
                 if item.get('Name') == 'InstanceId':
                     instance_id = item.get('Value')
                 if item.get('Name') == 'path':
                     mount_point=item.get('Value')
             disk_usage = 0
+            # getting disk usage from the response obj
             for point in res['Datapoints']:
                 if 'Average' in point:
                     disk_usage = point['Average']
