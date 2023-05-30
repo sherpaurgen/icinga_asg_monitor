@@ -109,7 +109,7 @@ class AsgMemoryMonitor:
             # get pubip
             response = ec2_client.describe_instances(InstanceIds=[instance_id])
             public_ip = response['Reservations'][0]['Instances'][0]['PublicIpAddress']
-            data={"instance_id":instance_id, "public_ip":public_ip, "memusage":memusage, "total_memory":totalmemory, "asgname":self.asg_name, "region_name":self.region_name}
+            data={"instance_id":instance_id, "public_ip":public_ip, "memusage":memusage, "total_memory":totalmemory, "asg_name":self.asg_name, "region_name":self.region_name}
             dbhandler.insert_memusage_data(data)
         else:
             return False
