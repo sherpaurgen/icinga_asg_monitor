@@ -90,7 +90,7 @@ class AsgCPUMonitor:
 
 def main():
     script_home = os.path.dirname(os.path.abspath(__file__))
-    dbfile = script_home + "/monitoring.db"
+    dbfile = script_home + "/icinga.db"
     cpumonconfig = script_home + "/monitor_cpu.yaml"
     namespace = "AWS/EC2"
     metricname = "CPUUtilization"

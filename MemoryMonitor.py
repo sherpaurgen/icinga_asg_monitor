@@ -140,7 +140,7 @@ def startProcessing(ASG_NAME, region_name, Namespace,
 def main():
     script_home = os.path.dirname(os.path.abspath(__file__))
     memory_monitor_config = script_home+"/monitor_memory.yaml"
-    dbfile = script_home+"/monitoring.db"
+    dbfile = script_home+"/icinga.db"
     db_handler=DbHandler(dbfile)
     # Loading the monitor_disk.yaml data
     with open(memory_monitor_config, "r") as f:

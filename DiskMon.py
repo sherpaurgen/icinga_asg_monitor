@@ -225,7 +225,7 @@ def startProcessing(ASG_NAME, region_name, mountpath, Namespace,
 def main():
     script_home = os.path.dirname(os.path.abspath(__file__))
     diskmntconfig = script_home+"/monitor_disk.yaml"
-    dbfile = script_home+"/monitoring.db"
+    dbfile = script_home+"/icinga.db"
     # setupLocalDb(dbfile)
     db_handler=DbHandler(dbfile)
 
