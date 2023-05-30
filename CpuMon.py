@@ -5,8 +5,6 @@ from datetime import datetime, timedelta
 import subprocess
 import yaml
 import os
-
-import sqlite3
 from dbHandler import DbHandler
 
 class AsgCPUMonitor:
@@ -83,7 +81,11 @@ class AsgCPUMonitor:
                 Statistics=['Average']
             )
             cpuusage=response["Datapoints"][0].get("Average",0)
-            data = {"instance_id": instance["instance_id"], "cpuusage": cpuusage, "asgname": self.asg_name,"region_name":self.region_name}
+            instance_id=instance["instance_id"]
+            ec2_client = boto3.client('ec2',region_name=self.region_name)
+            response = ec2_client.describe_instances(InstanceIds=[instance_id])
+            public_ip = response['Reservations'][0]['Instances'][0]['PublicIpAddress']
+            data = {"instance_id": instance["instance_id"],"public_ip":public_ip, "cpuusage": cpuusage, "asgname": self.asg_name,"region_name":self.region_name}
             db_handler.insert_cpuusage_data(data)
 
 def main():
@@ -103,8 +105,6 @@ def main():
                 continue
             else:
                 obj._get_cpu_utilization(runninginstances, db_handler)
-
-
     db_handler.close_connection()
 
 if __name__ == "__main__":

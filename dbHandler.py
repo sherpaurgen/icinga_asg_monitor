@@ -65,6 +65,7 @@ class DbHandler:
             self.cursor.execute('''CREATE TABLE IF NOT EXISTS cpu_usage (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
                                     instance_id TEXT,
+                                    public_ip TEXT,
                                     cpuusage REAL,
                                     asgname TEXT,
                                     region_name TEXT,
@@ -84,8 +85,8 @@ class DbHandler:
 
     def insert_cpuusage_data(self, data):
         try:
-            self.cursor.execute("INSERT INTO cpu_usage (instance_id, cpuusage, asgname) VALUES (?, ?, ?)",
-                            (data["instance_id"], data["cpuusage"], data["asgname"]))
+            self.cursor.execute("INSERT INTO cpu_usage (instance_id,public_ip, cpuusage, asgname) VALUES (?,?, ?, ?)",
+                            (data["instance_id"],data["public_ip"], data["cpuusage"], data["asgname"]))
             self.conn.commit()
         except Exception as e:
             self.dblogger.warning("DB Error, insert_memusage_data: " + str(e))
