@@ -132,7 +132,7 @@ def startProcessing(ASG_NAME, region_name, Namespace,
                 running_ec2_metric_list.append(dim)
 
     for ecm in running_ec2_metric_list:
-        adm1._get_memory_usage(ecm)
+        adm1._get_memory_usage(ecm,db_handler)
 
 
 
