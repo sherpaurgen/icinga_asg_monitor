@@ -79,7 +79,7 @@ class AsgMemoryMonitor:
             self.logger("Exception in _get_running_ec2 :" + str(e))
         return(runningec2)
 
-    def _get_memory_usage(self,ecm):
+    def _get_memory_usage(self,ecm,dbhandler):
         start_time = datetime.utcnow() - timedelta(minutes=5)
         end_time = datetime.utcnow()
         period = 300
@@ -94,9 +94,25 @@ class AsgMemoryMonitor:
             Statistics=['Average']
         )
         if len(res["Datapoints"])>0:
-            memusageavgpct=res["Datapoints"][0]['Average']
+            memusage=res["Datapoints"][0]['Average']
+            instance_id=ecm['Dimensions'][0]['Value']
 
+            ec2_client = boto3.client('ec2')
+            response = ec2_client.describe_instances(InstanceIds=[instance_id])
+            instance_type = response['Reservations'][0]['Instances'][0]['InstanceType']
 
+            # get total memory in MB
+            response = ec2_client.describe_instance_types(InstanceTypes=[instance_type])
+            totalmemory = response['InstanceTypes'][0]['MemoryInfo']['SizeInMiB']
+            response = ec2_client.describe_instances(InstanceIds=[instance_id])
+
+            # get pubip
+            response = ec2_client.describe_instances(InstanceIds=[instance_id])
+            public_ip = response['Reservations'][0]['Instances'][0]['PublicIpAddress']
+            data={"instance_id":instance_id, "public_ip":public_ip, "memusage":memusage, "total_memory":totalmemory, "asgname":self.asg_name, "region_name":self.region_name}
+            dbhandler.insert_memusage_data(data)
+        else:
+            return False
 
 def startProcessing(ASG_NAME, region_name, Namespace,
                           MetricName,hosttemplatepath,
@@ -108,8 +124,8 @@ def startProcessing(ASG_NAME, region_name, Namespace,
         return
     metric_list_with_asgec2=adm1._get_metric_instanceid_from_asg()
     runningec2=adm1._get_running_ec2(metric_list_with_asgec2)
-    # preparing list for ec2 that are powered on/running
-    running_ec2_metric_list=[]
+    # Preparing list for ec2 that are powered on/running
+    running_ec2_metric_list = []
     for id in runningec2:
         for dim in metric_list_with_asgec2:
             if dim["Dimensions"][0]["Value"] == id:
