@@ -6,6 +6,7 @@ object Host "{{ hostname }}" {
     vars.os = "Linux"
     vars.instance_id = "{{ instance_id }}"
     vars.asg_name = "{{ asg_name }}"
+    check_command = "dummy"
     enable_active_checks = false
 }
 

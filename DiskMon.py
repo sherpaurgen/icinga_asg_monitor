@@ -100,8 +100,6 @@ class AsgDiskMonitor:
         instance_id = instance_id
         try:
             response = ec2_client.describe_instances(InstanceIds=[instance_id])
-            # print("_get_ec2_detail  : " + str(instance_id))
-            # print("From _get_ec2_detail: " + str(response))
 
         except Exception as e:
             self.logger.warning("_get_ec2_detail Failed :")
@@ -122,10 +120,10 @@ class AsgDiskMonitor:
                         if tag['Key'] == 'Name':
                             instance_name = tag.get('Value', 'NoHostname')
                             if len(instance_name) < 1:
-                                instance_name = 'No name specified'
+                                instance_name = instance_id
                             break
                         else:
-                            instance_name = 'No name specified'
+                            instance_name = instance_id
                 return (
                     {"instance_id": instance_id, "pub_ip": public_ip, "dns_name": dns_name,
                      "instance_name": instance_name,
