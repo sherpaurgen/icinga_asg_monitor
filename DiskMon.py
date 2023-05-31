@@ -1,12 +1,9 @@
 #!/monitoringScripts/VENVT/bin/python
 import boto3
 import logging
-from jinja2 import Template
 from datetime import datetime, timedelta
 import subprocess
-import yaml
-import os
-from dbHandler import DbHandler
+
 
 class AsgDiskMonitor:
     def __init__(self, asg_name, region_name, mountpath, namespace, metric_name, hosttemplatepath, icingahostfilepath):

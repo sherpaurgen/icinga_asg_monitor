@@ -1,10 +1,7 @@
 from DiskMon import AsgDiskMonitor
 from MemoryMonitor import AsgMemoryMonitor
 from CpuMon import AsgCPUMonitor
-import boto3
-import logging
 from jinja2 import Template
-from datetime import datetime, timedelta
 import subprocess
 import yaml
 import os
@@ -19,7 +16,7 @@ def startMemoryProcessing(ASG_NAME, region_name, Namespace,
     if adm1.verify_asg() is False:
         return
     metric_list_with_asgec2=adm1._get_metric_instanceid_from_asg()
-    print(metric_list_with_asgec2)
+    # print(metric_list_with_asgec2)
     runningec2=adm1._get_running_ec2(metric_list_with_asgec2)
     if runningec2 is False:
         return
@@ -58,9 +55,8 @@ def startDiskProcessing(ASG_NAME, region_name, mountpath, Namespace,
             else:
                 continue
     if len(asgInstanceId) > 0:
-        print('------asgInstanceId-------')
-        print(asgInstanceId)
-
+        # print('------asgInstanceId-------')
+        # print(asgInstanceId)
         for instanceid in asgInstanceId:
             instanceData = adm1._get_ec2_detail(instanceid)
             # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2/client/describe_instance_status.html
