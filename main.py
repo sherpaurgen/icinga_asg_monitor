@@ -1,11 +1,11 @@
-from DiskMon import AsgDiskMonitor
-from MemoryMonitor import AsgMemoryMonitor
-from CpuMon import AsgCPUMonitor
+from helpers.DiskMon import AsgDiskMonitor
+from helpers.MemoryMonitor import AsgMemoryMonitor
+from helpers.CpuMon import AsgCPUMonitor
 from jinja2 import Template
 import subprocess
 import yaml
 import os
-from dbHandler import DbHandler
+from helpers.dbHandler import DbHandler
 
 def startMemoryProcessing(ASG_NAME, region_name, Namespace,
                           MetricName,hosttemplatepath,
