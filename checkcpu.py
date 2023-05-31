@@ -7,10 +7,13 @@ cursor = conn.cursor()
 
 instanceid=sys.argv[1]
 
-# Define the query to select the latest record
+# Define the query to select the latest record -only1 row
 query = "SELECT cpuusage FROM cpu_usage WHERE instance_id = ? ORDER BY id DESC LIMIT 1;"
-cursor.execute(query, (instanceid,))
-cpuusage = cursor.fetchone()[0]
+cpuusageTuple=cursor.execute(query, (instanceid,))
+if cpuusageTuple is None:
+    cpuusage=0
+else:
+    cpuusage = cpuusageTuple[0]
 
 
 if cpuusage >= 90:

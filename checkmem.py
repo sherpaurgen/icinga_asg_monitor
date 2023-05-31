@@ -9,8 +9,11 @@ instanceid=sys.argv[1]
 
 # Define the query to select the latest record
 query = "SELECT memusage FROM mem_usage WHERE instance_id = ? ORDER BY id DESC LIMIT 1;"
-cursor.execute(query, (instanceid,))
-memusage = cursor.fetchone()[0]
+memusageTuple = cursor.execute(query, (instanceid,))
+if memusageTuple is None:
+    memusage=0
+else:
+    memusage = memusageTuple[0]
 
 if memusage >= 90:
     print(f"CRITICAL - Memory usage is above threshold {memusage}")
