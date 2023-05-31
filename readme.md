@@ -33,5 +33,6 @@ object CheckCommand "check_ec2_disk_usage_on_rootPartition" {
   timeout = 60s
 }
 ```
-
+Data fetched from cloudwatch is stored in SQLite db - **_icinga.db_**
+Use sqlite3 command and query the 3 tables to see if fetched data is available.
 
