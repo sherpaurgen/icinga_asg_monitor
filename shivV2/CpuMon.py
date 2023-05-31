@@ -1,4 +1,3 @@
-#!/monitoringScripts/VENVT/bin/python
 import boto3
 import logging
 from jinja2 import Template
@@ -7,7 +6,6 @@ import subprocess
 import yaml
 import os
 from dbHandler import DbHandler
-
 
 class AsgCPUMonitor:
     def __init__(self, asg_name, region_name, namespace, metric_name):
@@ -20,7 +18,7 @@ class AsgCPUMonitor:
     def _create_logger(self):
         logger = logging.getLogger(__name__)
         logger.setLevel(logging.INFO)
-        formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s", '%Y-%m-%d %H:%M:%S')
+        formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s",'%Y-%m-%d %H:%M:%S')
         file_handler = logging.FileHandler("/tmp/custom_ec2_info_fetcher.log")
         file_handler.setFormatter(formatter)
         stream_handler = logging.StreamHandler()
@@ -30,16 +28,16 @@ class AsgCPUMonitor:
         return logger
 
     def _get_running_instances(self):
-        cw_client_asg = boto3.client('autoscaling', region_name=self.region_name)
+        cw_client_asg = boto3.client('autoscaling',region_name=self.region_name)
         response = cw_client_asg.describe_auto_scaling_groups(AutoScalingGroupNames=[self.asg_name])
         # return false if the asg name is not found
         if not response["AutoScalingGroups"]:
-            return (False)
+            return(False)
         else:
             instancestmp = response['AutoScalingGroups'][0]['Instances']
             print(instancestmp)
             cw_cli_ec2 = boto3.client('ec2', region_name=self.region_name)
-            running_instances = []
+            running_instances=[]
             for instance in instancestmp:
                 instance_id = instance['InstanceId']
                 response = cw_cli_ec2.describe_instances(InstanceIds=[instance_id])
@@ -67,10 +65,10 @@ class AsgCPUMonitor:
                              "state": state})
                 except Exception as e:
                     self.logger.warning("_get_ec2_detail Error:" + str(e))
-            return (running_instances)
+            return(running_instances)
 
-    def _get_cpu_utilization(self, running_instances, db_handler):
-        cw_cli = boto3.client('cloudwatch', region_name=self.region_name)
+    def _get_cpu_utilization(self,running_instances,db_handler):
+        cw_cli = boto3.client('cloudwatch',region_name=self.region_name)
         for instance in running_instances:
             dimensions = [{'Name': 'InstanceId', 'Value': instance["instance_id"]}]
             response = cw_cli.get_metric_statistics(
@@ -82,15 +80,13 @@ class AsgCPUMonitor:
                 Period=300,
                 Statistics=['Average']
             )
-            cpuusage = response["Datapoints"][0].get("Average", 0)
-            instance_id = instance["instance_id"]
-            ec2_client = boto3.client('ec2', region_name=self.region_name)
+            cpuusage=response["Datapoints"][0].get("Average",0)
+            instance_id=instance["instance_id"]
+            ec2_client = boto3.client('ec2',region_name=self.region_name)
             response = ec2_client.describe_instances(InstanceIds=[instance_id])
             public_ip = response['Reservations'][0]['Instances'][0]['PublicIpAddress']
-            data = {"instance_id": instance["instance_id"], "public_ip": public_ip, "cpuusage": cpuusage,
-                    "asgname": self.asg_name, "region_name": self.region_name}
+            data = {"instance_id": instance["instance_id"],"public_ip":public_ip, "cpuusage": cpuusage, "asgname": self.asg_name,"region_name":self.region_name}
             db_handler.insert_cpuusage_data(data)
-
 
 def main():
     script_home = os.path.dirname(os.path.abspath(__file__))
@@ -98,11 +94,11 @@ def main():
     cpumonconfig = script_home + "/monitor_cpu.yaml"
     namespace = "AWS/EC2"
     metricname = "CPUUtilization"
-
+    region_name= "us-west-2"
     with open(cpumonconfig, "r") as f:
         data = yaml.safe_load(f)
         for asgname in data['ASG_NAME']:
-            obj = AsgCPUMonitor(asgname, data["region_name"], data["Namespace"], data["MetricName"])
+            obj = AsgCPUMonitor(asgname,region_name, namespace, metricname)
             db_handler = DbHandler(dbfile)
             runninginstances = obj._get_running_instances()
             if runninginstances is False:
@@ -111,7 +107,6 @@ def main():
                 obj._get_cpu_utilization(runninginstances, db_handler)
     db_handler.close_connection()
 
-
 if __name__ == "__main__":
-    main()
+        main()
 

@@ -1,4 +1,3 @@
-#!/monitoringScripts/VENVT/bin/python
 import boto3
 import logging
 from jinja2 import Template
@@ -36,7 +35,7 @@ class AsgMemoryMonitor:
         response = cw_client_asg.describe_auto_scaling_groups(AutoScalingGroupNames=[self.asg_name])
         # return false if the asg name is not found
         if not response["AutoScalingGroups"]:
-            self.logger.warning("Error in verify_asg: ASG not found please check asg name exist in monitor_memory.yaml")
+            self.logger("Error in verify_asg: ASG not found please check asg name exist in monitor_memory.yaml")
             return (False)
         else:
             return (True)
@@ -50,8 +49,6 @@ class AsgMemoryMonitor:
             MetricName=self.metric_name
         )
         # response has list of metrics + asg name and instance id
-        # print('--RESPONSE of _get_metric_instanceid_from_asg---------------')
-        # print(resp)
         if "Metrics" in resp and len(resp["Metrics"]) > 0:
             for metric in resp["Metrics"]:
                 if metric["Namespace"] == self.namespace and metric["MetricName"] == self.metric_name:
@@ -59,8 +56,6 @@ class AsgMemoryMonitor:
                         ASG_EC2S.append(metric)
                 else:
                     continue
-            # print('------------------------')
-            # print(ASG_EC2S)
             return (ASG_EC2S)
         else:
             self.logger.warning("Err _get_ec2_from_asg: Metrics not found. Please check response obj")
@@ -70,28 +65,18 @@ class AsgMemoryMonitor:
         runningec2=[]
         extractedinstanceid=[]
         metric_list_with_asgec2=metric_list_with_asgec2
-
-        if len(metric_list_with_asgec2)<1:
-            return
         for item in metric_list_with_asgec2:
-            print(item)
-            print()
-            if item["Dimensions"][0].get('Name') == "InstanceId":
-                instanceid=item["Dimensions"][0].get('Value') #get the instanceid from instancelist [{'Namespace': 'CWAgent', 'MetricName': 'mem_used_percent', 'Dimensions': [{'Name': 'InstanceId', 'Value': 'i-0bbe91a73726127df'},
-            else:
-                continue
+            instanceid=item["Dimensions"][0].get('Value') #get the instanceid from instancelist [{'Namespace': 'CWAgent', 'MetricName': 'mem_used_percent', 'Dimensions': [{'Name': 'InstanceId', 'Value': 'i-0bbe91a73726127df'},
             extractedinstanceid.append(instanceid)
-        for instid in extractedinstanceid:
-            try:
-                response = client.describe_instance_status(
-                    InstanceIds=[instid],
-                    IncludeAllInstances=False
-                )
-                for ec2 in response["InstanceStatuses"]:
-                    runningec2.append(ec2.get("InstanceId"))
-            except Exception as e:
-                self.logger.warning("Exception in _get_running_ec2 :" + str(e))
-                continue
+        try:
+            response = client.describe_instance_status(
+                InstanceIds=extractedinstanceid,
+                IncludeAllInstances=False
+            )
+            for ec2 in response["InstanceStatuses"]:
+                runningec2.append(ec2.get("InstanceId"))
+        except Exception as e:
+            self.logger("Exception in _get_running_ec2 :" + str(e))
         return(runningec2)
 
     def _get_memory_usage(self,ecm,dbhandler):
@@ -112,7 +97,7 @@ class AsgMemoryMonitor:
             memusage = res["Datapoints"][0]['Average']
             instance_id = ecm['Dimensions'][0]['Value']
             # get instance type to find memory
-            ec2_client = boto3.client('ec2',region_name=self.region_name)
+            ec2_client = boto3.client('ec2')
             response = ec2_client.describe_instances(InstanceIds=[instance_id])
             instance_type = response['Reservations'][0]['Instances'][0]['InstanceType']
 
@@ -137,13 +122,9 @@ def startProcessing(ASG_NAME, region_name, Namespace,
     if adm1.verify_asg() is False:
         return
     metric_list_with_asgec2=adm1._get_metric_instanceid_from_asg()
-    print(metric_list_with_asgec2)
     runningec2=adm1._get_running_ec2(metric_list_with_asgec2)
-    if runningec2 is False:
-        return
-    # Preparing list for ec2 that are powered on/running i-0f854388d312bc919
+    # Preparing list for ec2 that are powered on/running
     running_ec2_metric_list = []
-
     for id in runningec2:
         for dim in metric_list_with_asgec2:
             if dim["Dimensions"][0]["Value"] == id:
@@ -151,6 +132,10 @@ def startProcessing(ASG_NAME, region_name, Namespace,
 
     for ecm in running_ec2_metric_list:
         adm1._get_memory_usage(ecm,db_handler)
+
+
+
+
 
 def main():
     script_home = os.path.dirname(os.path.abspath(__file__))

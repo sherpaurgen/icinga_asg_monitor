@@ -1,4 +1,3 @@
-#!/monitoringScripts/VENVT/bin/python
 import sqlite3
 import logging
 class DbHandler:
@@ -86,8 +85,8 @@ class DbHandler:
 
     def insert_cpuusage_data(self, data):
         try:
-            self.cursor.execute("INSERT INTO cpu_usage (instance_id,public_ip, cpuusage, asgname,region_name) VALUES (?,?,?, ?, ?)",
-                            (data["instance_id"],data["public_ip"], data["cpuusage"], data["asgname"],data["region_name"]))
+            self.cursor.execute("INSERT INTO cpu_usage (instance_id,public_ip, cpuusage, asgname) VALUES (?,?, ?, ?)",
+                            (data["instance_id"],data["public_ip"], data["cpuusage"], data["asgname"]))
             self.conn.commit()
         except Exception as e:
             self.dblogger.warning("DB Error, insert_memusage_data: " + str(e))

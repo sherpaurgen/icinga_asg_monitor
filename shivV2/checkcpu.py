@@ -1,8 +1,8 @@
-#!/monitoringScripts/VENVT/bin/python
+#!/code/VENV/bin/python
 import sys
 import sqlite3
 
-conn = sqlite3.connect('/monitoringScripts/code/icinga.db')
+conn = sqlite3.connect('icinga.db')
 cursor = conn.cursor()
 
 instanceid=sys.argv[1]
