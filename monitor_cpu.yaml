@@ -3,6 +3,8 @@ hosttemplatepath: '/tmp/ec2host.j2'
 ASG_NAME:
   - 'AsgUsh'
   - 'TestASG'
-region_name: 'us-west-2'
+region_name:
+  - 'us-west-2'
+  - 'us-west-1'
 Namespace: 'CWAgent'
 MetricName: 'disk_used_percent'

@@ -121,45 +121,45 @@ def main():
         truncate_file(data["icingahostfilepath"])
         icingahostfilepath = data["icingahostfilepath"]
         hosttemplatepath = data["hosttemplatepath"]
-        # return false if the asg name is not found
-        for asgname in data["ASG_NAME"]:
-            for path in mountpaths:
-                print("Mount Path:", path)
-                startDiskProcessing(asgname, data["region_name"], path, data["Namespace"],
-                                data["MetricName"], data["hosttemplatepath"],
-                                data["icingahostfilepath"], db_handler, hostSetVar)
+        for region_name in data['region_name']:
+            for asgname in data["ASG_NAME"]:
+                for path in mountpaths:
+                    print("Gettings stats for mount Path:", path)
+                    startDiskProcessing(asgname, region_name, path, data["Namespace"],
+                                    data["MetricName"], data["hosttemplatepath"],
+                                    data["icingahostfilepath"], db_handler, hostSetVar)
     if len(hostSetVar) > 0:
         for item in hostSetVar:
             # hostSetVar.add((instanceData['instance_name'],instanceData['pub_ip'], instanceData['instance_id'],ASG_NAME,region_name))
             generate_host_file(icingahostfilepath, hosttemplatepath, item[0], item[1], item[2], item[3], item[4])
     db_handler.close_connection()
 
-    # Memory monitor start ###
+    # #  #  Memory monitor start # # #
     memory_monitor_config = script_home + "/monitor_memory.yaml"
     db_handler = DbHandler(dbfile)
-    # Loading the monitor_disk.yaml data
+    # # Loading the monitor_disk.yaml data
     with open(memory_monitor_config, "r") as f:
         data = yaml.safe_load(f)
-        # return false if the asg name is not found
-        for asgname in data["ASG_NAME"]:
-            startMemoryProcessing(asgname, data["region_name"], data["Namespace"], data["Metricname"],
-                            data["hosttemplatepath"], data["icingahostfilepath"], db_handler)
+        for region_name in data['region_name']:
+            for asgname in data["ASG_NAME"]:
+                startMemoryProcessing(asgname, region_name, data["Namespace"], data["Metricname"],data["hosttemplatepath"], data["icingahostfilepath"], db_handler)
 
     db_handler.close_connection()
 
-    # Cpu monitor starts from here
+    # # # # Cpu Monitor starts from here
     cpumonconfig = script_home + "/monitor_cpu.yaml"
 
     with open(cpumonconfig, "r") as f:
         data = yaml.safe_load(f)
-        for asgname in data['ASG_NAME']:
-            obj = AsgCPUMonitor(asgname, data["region_name"], data["Namespace"], data["MetricName"])
-            db_handler = DbHandler(dbfile)
-            runninginstances = obj._get_running_instances()
-            if runninginstances is False:
-                continue
-            else:
-                obj._get_cpu_utilization(runninginstances, db_handler)
+        for region_name in data['region_name']:
+            for asgname in data['ASG_NAME']:
+                obj = AsgCPUMonitor(asgname, region_name, data["Namespace"], data["MetricName"])
+                db_handler = DbHandler(dbfile)
+                runninginstances = obj._get_running_instances()
+                if runninginstances is False:
+                    continue
+                else:
+                    obj._get_cpu_utilization(runninginstances, db_handler)
     db_handler.close_connection()
 
 
