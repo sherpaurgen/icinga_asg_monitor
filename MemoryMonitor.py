@@ -49,9 +49,7 @@ class AsgMemoryMonitor:
             Namespace=self.namespace,
             MetricName=self.metric_name
         )
-        # response has list of metrics + asg name and instance id
-        # print('--RESPONSE of _get_metric_instanceid_from_asg---------------')
-        # print(resp)
+
         if "Metrics" in resp and len(resp["Metrics"]) > 0:
             for metric in resp["Metrics"]:
                 if metric["Namespace"] == self.namespace and metric["MetricName"] == self.metric_name:
@@ -59,8 +57,6 @@ class AsgMemoryMonitor:
                         ASG_EC2S.append(metric)
                 else:
                     continue
-            # print('------------------------')
-            # print(ASG_EC2S)
             return (ASG_EC2S)
         else:
             self.logger.warning("Err _get_ec2_from_asg: Metrics not found. Please check response obj")
@@ -74,8 +70,6 @@ class AsgMemoryMonitor:
         if len(metric_list_with_asgec2)<1:
             return
         for item in metric_list_with_asgec2:
-            print(item)
-            print()
             if item["Dimensions"][0].get('Name') == "InstanceId":
                 instanceid=item["Dimensions"][0].get('Value') #get the instanceid from instancelist [{'Namespace': 'CWAgent', 'MetricName': 'mem_used_percent', 'Dimensions': [{'Name': 'InstanceId', 'Value': 'i-0bbe91a73726127df'},
             else:
@@ -128,44 +122,9 @@ class AsgMemoryMonitor:
         else:
             return False
 
-def startProcessing(ASG_NAME, region_name, Namespace,
-                          MetricName,hosttemplatepath,
-                          icingahostfilepath,db_handler):
-    adm1 = AsgMemoryMonitor(asg_name=ASG_NAME, region_name=region_name, namespace=Namespace,
-                          metric_name=MetricName, hosttemplatepath=hosttemplatepath,
-                          icingahostfilepath=icingahostfilepath)
-    if adm1.verify_asg() is False:
-        return
-    metric_list_with_asgec2=adm1._get_metric_instanceid_from_asg()
-    print(metric_list_with_asgec2)
-    runningec2=adm1._get_running_ec2(metric_list_with_asgec2)
-    if runningec2 is False:
-        return
-    # Preparing list for ec2 that are powered on/running i-0f854388d312bc919
-    running_ec2_metric_list = []
-
-    for id in runningec2:
-        for dim in metric_list_with_asgec2:
-            if dim["Dimensions"][0]["Value"] == id:
-                running_ec2_metric_list.append(dim)
-
-    for ecm in running_ec2_metric_list:
-        adm1._get_memory_usage(ecm,db_handler)
 
 def main():
-    script_home = os.path.dirname(os.path.abspath(__file__))
-    memory_monitor_config = script_home+"/monitor_memory.yaml"
-    dbfile = script_home+"/icinga.db"
-    db_handler=DbHandler(dbfile)
-    # Loading the monitor_disk.yaml data
-    with open(memory_monitor_config, "r") as f:
-        data = yaml.safe_load(f)
-        # return false if the asg name is not found
-        for asgname in data["ASG_NAME"]:
-            startProcessing(asgname,data["region_name"],data["Namespace"],data["Metricname"],data["hosttemplatepath"],data["icingahostfilepath"],db_handler)
-
-
-    db_handler.close_connection()
+    print("Use main")
 
 
 if __name__ == "__main__":

@@ -37,7 +37,6 @@ class AsgCPUMonitor:
             return (False)
         else:
             instancestmp = response['AutoScalingGroups'][0]['Instances']
-            print(instancestmp)
             cw_cli_ec2 = boto3.client('ec2', region_name=self.region_name)
             running_instances = []
             for instance in instancestmp:
@@ -93,23 +92,7 @@ class AsgCPUMonitor:
 
 
 def main():
-    script_home = os.path.dirname(os.path.abspath(__file__))
-    dbfile = script_home + "/icinga.db"
-    cpumonconfig = script_home + "/monitor_cpu.yaml"
-    namespace = "AWS/EC2"
-    metricname = "CPUUtilization"
-
-    with open(cpumonconfig, "r") as f:
-        data = yaml.safe_load(f)
-        for asgname in data['ASG_NAME']:
-            obj = AsgCPUMonitor(asgname, data["region_name"], data["Namespace"], data["MetricName"])
-            db_handler = DbHandler(dbfile)
-            runninginstances = obj._get_running_instances()
-            if runninginstances is False:
-                continue
-            else:
-                obj._get_cpu_utilization(runninginstances, db_handler)
-    db_handler.close_connection()
+    print("Use main.py")
 
 
 if __name__ == "__main__":
