@@ -1,4 +1,4 @@
-###  Python program to fetch memory, cpu and disk-mountpoints
+###  Python program to fetch memory, cpu and disk-mountpoints using Boto3 & aws services
 
 - Install pkgs from requirements.txt
 - Activate virtual enviroment
