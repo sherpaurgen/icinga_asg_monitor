@@ -16,7 +16,7 @@ _ASG_EC2_Host.conf_ this files contains the host objects(instances found in ASG 
 
 ### Reference for icinga configs
 _icinga services.conf_
-```json
+```
 apply Service "ec2_disk_usage_service_root" {
   import "generic-service"
   check_command = "check_ec2_disk_usage_on_rootPartition"
@@ -26,7 +26,7 @@ apply Service "ec2_disk_usage_service_root" {
 }
 ```
 _commands.conf_
-```json
+```
 object CheckCommand "check_ec2_disk_usage_on_rootPartition" {
   import "plugin-check-command"
   command = ["/code/monit/checkDiskUsage.py","$arg1$","$arg2$"]
