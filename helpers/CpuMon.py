@@ -2,6 +2,10 @@
 import boto3
 import logging
 from datetime import datetime, timedelta
+import concurrent.futures
+import time
+import json
+
 
 
 
@@ -25,49 +29,68 @@ class AsgCPUMonitor:
         logger.addHandler(stream_handler)
         return logger
 
+    def _get_dns_ip(self,instance_id):
+        cw_cli_ec2 = boto3.client('ec2', region_name=self.region_name)
+        response = cw_cli_ec2.describe_instances(InstanceIds=[instance_id])
+        instance_name = ''
+        if len(response['Reservations']) < 1:
+            return (False)
+        try:
+            for reservation in response['Reservations']:
+                for instance in reservation['Instances']:
+                    public_ip = instance.get('PublicIpAddress', 'NA')
+                    dns_name = instance.get('PublicDnsName', 'NA')
+                    private_ip = instance.get('PrivateIpAddress', 'NA')
+                    state = instance['State']['Code']
+                    # Get the instance name if its set
+                    for tag in instance['Tags']:
+                        if tag['Key'] == 'Name':
+                            instance_name = tag.get('Value', self.asg_name+"_"+instance_id)
+                            if len(instance_name) < 1:
+                                instance_name = self.asg_name+"_"+instance_id
+                            break
+                        else:
+                            instance_name = self.asg_name+"_"+instance_id
+                    return {"instance_id":instance_id,"public_ip":public_ip,"dns_name":dns_name,"private_ip":private_ip,"state":state,"instance_name":instance_name}
+        except Exception as e:
+            self.logger.warning("_get_dns_ip Exception:" + str(e))
+
     def _get_running_instances(self):
+        tstart = time.perf_counter()
         cw_client_asg = boto3.client('autoscaling', region_name=self.region_name)
         response = cw_client_asg.describe_auto_scaling_groups(AutoScalingGroupNames=[self.asg_name])
+        tend = time.perf_counter()
+        print(f"describe_auto_scaling_groups spent {(tend-tstart):.3f} seconds ")
         # return false if the asg name is not found
         if not response["AutoScalingGroups"]:
             return (False)
         else:
             instancestmp = response['AutoScalingGroups'][0]['Instances']
-            cw_cli_ec2 = boto3.client('ec2', region_name=self.region_name)
             running_instances = []
-            for instance in instancestmp:
-                instance_id = instance['InstanceId']
-                response = cw_cli_ec2.describe_instances(InstanceIds=[instance_id])
-                instance_name = ''
-                if len(response['Reservations']) < 1:
-                    return (False)
-                try:
-                    for reservation in response['Reservations']:
-                        for instance in reservation['Instances']:
-                            public_ip = instance.get('PublicIpAddress', 'N/A')
-                            dns_name = instance.get('PublicDnsName', 'N/A')
-                            state = instance['State']['Code']
-                            # Get the instance name if its set
-                            for tag in instance['Tags']:
-                                if tag['Key'] == 'Name':
-                                    instance_name = tag.get('Value', 'NoHostname')
-                                    if len(instance_name) < 1:
-                                        instance_name = 'No name specified'
-                                    break
-                                else:
-                                    instance_name = 'No name specified'
+            futures=[]
+            with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+                for instance in instancestmp:
+                    instance_id = instance['InstanceId']
+                    # get publicip,privateip of running instance
+                    futures.append(executor.submit(self._get_dns_ip,instance_id))
+                    result=self._get_dns_ip(instance_id)
+                for completed_task in concurrent.futures.as_completed(futures):
+                    try:
+                        result=completed_task.result()
                         running_instances.append(
-                            {"instance_id": instance_id, "pub_ip": public_ip, "dns_name": dns_name,
-                             "instance_name": instance_name,
-                             "state": state})
-                except Exception as e:
-                    self.logger.warning("_get_ec2_detail Error:" + str(e))
+                            {"instance_id": result["instance_id"], "public_ip": result["public_ip"],
+                             "private_ip": result["private_ip"], "dns_name": result["dns_name"],
+                             "instance_name": result["instance_name"], "state": result["state"]})
+                    except Exception as e:
+                        self.logger.warning("_get_running_instances: Exception: "+str(e))
             return (running_instances)
 
-    def _get_cpu_utilization(self, running_instances, db_handler):
-        cw_cli = boto3.client('cloudwatch', region_name=self.region_name)
-        for instance in running_instances:
-            dimensions = [{'Name': 'InstanceId', 'Value': instance["instance_id"]}]
+    def _get_metric_statistics_of_instance_savetodb(self,instancerunning,db_handler):
+        tstart = time.perf_counter()
+        try:
+            instance_id = instancerunning['instance_id']
+            cw_cli = boto3.client('cloudwatch', region_name=self.region_name)
+            dimensions = [{'Name': 'InstanceId', 'Value': instance_id }]
             response = cw_cli.get_metric_statistics(
                 Namespace=self.namespace,
                 MetricName=self.metric_name,
@@ -78,13 +101,31 @@ class AsgCPUMonitor:
                 Statistics=['Average']
             )
             cpuusage = response["Datapoints"][0].get("Average", 0)
-            instance_id = instance["instance_id"]
-            ec2_client = boto3.client('ec2', region_name=self.region_name)
-            response = ec2_client.describe_instances(InstanceIds=[instance_id])
-            public_ip = response['Reservations'][0]['Instances'][0]['PublicIpAddress']
-            data = {"instance_id": instance["instance_id"], "public_ip": public_ip, "cpuusage": cpuusage,
+            tstop = time.perf_counter()
+            timeelapsed=(tstop-tstart)
+            print(f"{timeelapsed:.3f} second timeelapsed for getMetric statistics: {instance_id}")
+            #extract the public ip of running instance from response
+            try:
+                public_ip = instancerunning["public_ip"]
+            except Exception as e:
+                public_ip=instancerunning["private_ip"]
+                self.logger.warning("_get_metric_statistics_of_instance_savetodb : public ip not found, Using private ip for "+instance_id +str(e))
+            data = {"instance_id": instance_id, "public_ip": public_ip,"private_ip":instancerunning["private_ip"],"instance_name":instancerunning["instance_name"], "cpuusage": cpuusage,
                     "asgname": self.asg_name, "region_name": self.region_name}
             db_handler.insert_cpuusage_data(data)
+        except Exception as e:
+            self.logger.warning("_get_metric_statistics_of_instance_savetodb: Exception: "+ str(e))
+
+    def _get_cpu_utilization(self, running_instances, db_handler):
+        with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+            futures=[]
+            for instance in running_instances:
+                futures.append(executor.submit(self._get_metric_statistics_of_instance_savetodb,instance,db_handler))
+            for future in concurrent.futures.as_completed(futures):
+                try:
+                    pass
+                except Exception as e:
+                    print("_get_cpu_utilization Exception:"+str(e))
 
 
 def main():

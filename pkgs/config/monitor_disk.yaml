@@ -1,10 +1,11 @@
 icingahostfilepath: '/tmp/ASG_EC2_Host.conf'
 hosttemplatepath: '/tmp/ec2host.j2'
-ASG_NAME:
-  - 'MoodleCloudASG'
-  - 'ushg'
-  - 'abcd'
-region_name:
-  - 'us-west-2'
+region_name: 'us-west-2'
 Namespace: 'CWAgent'
 MetricName: 'disk_used_percent'
+ASG_NAME:
+  - 'AsgUsh'
+mountpath:
+  - '/mydata'
+  - '/'
+

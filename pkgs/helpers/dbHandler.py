@@ -4,7 +4,6 @@ import logging
 class DbHandler:
     #timestamps in utc will be added automatically
     def __init__(self, db_file):
-        self.db_file_path=db_file
         self.conn = sqlite3.connect(db_file)
         self.cursor = self.conn.cursor()
         self.create_diskusage_table()
@@ -54,47 +53,26 @@ class DbHandler:
             self.conn.commit()
         except Exception as e:
             self.dblogger.warning("DB Error, create_memusage_table: " + str(e))
-
     def insert_memusage_data(self, data):
-        conn = sqlite3.connect(self.db_file_path)
-        cursor = conn.cursor()
         try:
-            cursor.execute("INSERT INTO mem_usage (instance_id,public_ip, memusage,total_memory, asg_name,region_name) VALUES (?,?,?,?,?,?)",
+            self.cursor.execute("INSERT INTO mem_usage (instance_id,public_ip, memusage,total_memory, asg_name,region_name) VALUES (?,?,?,?,?,?)",
                             (data["instance_id"], data["public_ip"], data["memusage"],data["total_memory"], data["asg_name"],data["region_name"]))
-            conn.commit()
-            conn.close()
+            self.conn.commit()
         except Exception as e:
             self.dblogger.warning("DB Error, insert_memusage_data: " + str(e))
 
-    def truncate_table(self):
-        conn = sqlite3.connect(self.db_file_path)
-        cursor = conn.cursor()
-        try:
-            cursor.execute("DELETE FROM cpu_usage")
-            cursor.execute("DELETE FROM mem_usage")
-            cursor.execute("DELETE FROM disk_usage")
-            conn.commit()
-            conn.close()
-        except Exception as e:
-            self.dblogger.warning("DB Error, Truncate tables: " + str(e))
-
     def create_cpuusage_table(self):
         try:
-            conn = sqlite3.connect(self.db_file_path)
-            cursor = conn.cursor()
-            cursor.execute('''CREATE TABLE IF NOT EXISTS cpu_usage (
+            self.cursor.execute('''CREATE TABLE IF NOT EXISTS cpu_usage (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
                                     instance_id TEXT,
-                                    instance_name TEXT,
                                     public_ip TEXT,
-                                    private_ip TEXT,
                                     cpuusage REAL,
                                     asgname TEXT,
                                     region_name TEXT,
                                     updatedat CURRENT_TIMESTAMP
                                 )''')
-            conn.commit()
-            conn.close()
+            self.conn.commit()
         except Exception as e:
             self.dblogger.warning("DB Error, create_cpuusage_table: " + str(e))
 
@@ -107,16 +85,12 @@ class DbHandler:
             self.dblogger.warning("DB Error, insert_diskusage_data: " + str(e))
 
     def insert_cpuusage_data(self, data):
-        conn = sqlite3.connect(self.db_file_path)
-        cursor = conn.cursor()
-        self.create_cpuusage_table()
         try:
-            cursor.execute("INSERT INTO cpu_usage (instance_id,instance_name,public_ip,private_ip,cpuusage,asgname,region_name) VALUES (?, ?, ?, ?,? ,?,?)",
-                            (data["instance_id"],data["instance_name"],data["public_ip"],data["private_ip"], data["cpuusage"], data["asgname"],data["region_name"]))
-            conn.commit()
-            conn.close()
+            self.cursor.execute("INSERT INTO cpu_usage (instance_id,public_ip, cpuusage, asgname,region_name) VALUES (?,?,?, ?, ?)",
+                            (data["instance_id"],data["public_ip"], data["cpuusage"], data["asgname"],data["region_name"]))
+            self.conn.commit()
         except Exception as e:
-            self.dblogger.warning("DB Error, insert_cpu_usage_data: " + str(e))
+            self.dblogger.warning("DB Error, insert_memusage_data: " + str(e))
 
 
 

@@ -228,3 +228,6 @@ object CheckCommand "check_ec2_disk_usage_on_rootPartition" {
   timeout = 60s
 }
 ```
+[ {"regionName": "eu-west-1",
+"ASG":[ {"moodle": }    ]
+]

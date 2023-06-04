@@ -6,9 +6,7 @@ import subprocess
 import yaml
 import os
 from helpers.dbHandler import DbHandler
-import time
 
-start_time = time.perf_counter()
 def startMemoryProcessing(ASG_NAME, region_name, Namespace,
                           MetricName,hosttemplatepath,
                           icingahostfilepath,db_handler):
@@ -90,7 +88,7 @@ def startDiskProcessing(ASG_NAME, region_name, mountpath, Namespace,
 def truncate_file(icingahostfilepath):
     with open(icingahostfilepath, 'w') as file:
         file.truncate()
-    subprocess.call(['chmod', '0644', icingahostfilepath])
+    subprocess.call(['chmod', '0755', icingahostfilepath])
 
 
 def generate_host_file(icingahostfilepath, hosttemplatepath, instance_name, pub_ip, instance_id, asg_name, region_name):
@@ -99,42 +97,58 @@ def generate_host_file(icingahostfilepath, hosttemplatepath, instance_name, pub_
         template_content = file.read()
 
     template = Template(template_content)
-    finalhostname=instance_name+instance_id
-    rendered_template = template.render(hostname=finalhostname, address=pub_ip, asg_name=asg_name,
+    rendered_template = template.render(hostname=instance_name, address=pub_ip, asg_name=asg_name,
                                         instance_id=instance_id)
     with open(icingahostfilepath, 'a') as output_file:
         output_file.write(rendered_template)
 
-def reloadIcinga(self):
-    command1 = "/usr/sbin/icinga2 daemon -C > /dev/null 2>&1"
-    # command1 = "echo"
-    try:
-        subprocess.run(command1, shell=True, check=True)
-    except subprocess.CalledProcessError as e:
-        print(f"reloadIcinga: Command '{command1}' failed with exit code {e.returncode}")
-    else:
-        # Run the second command if the first command succeeded
-        command2 = "sudo systemctl reload icinga2"
-        # command2 = "echo"
-        try:
-            subprocess.run(command2, shell=True, check=True)
-        except subprocess.CalledProcessError as e:
-            print(f"reloadIcinga: Command '{command2}' failed with exit code {e.returncode}")
-        else:
-            print("Icinga2 Reloaded Successfully")
+
 def main():
     hostSetVar = set()
     icingahostfilepath = ""
     hosttemplatepath = ""
 
     script_home = os.path.dirname(os.path.abspath(__file__))
-    diskmntconfig = script_home + "/config/monitor_disk.yaml"
+    diskmntconfig = script_home + "/monitor_disk.yaml"
     dbfile = script_home + "/icinga.db"
     # setupLocalDb(dbfile)
     db_handler = DbHandler(dbfile)
-    db_handler.truncate_table()
-    # Start fetching cpu info
-    cpumonconfig = script_home + "/config/monitor_cpu.yaml"
+
+    # Loading the monitor_disk.yaml data
+    with open(diskmntconfig, "r") as f:
+        data = yaml.safe_load(f)
+        mountpaths = data["mountpath"]
+        truncate_file(data["icingahostfilepath"])
+        icingahostfilepath = data["icingahostfilepath"]
+        hosttemplatepath = data["hosttemplatepath"]
+        for region_name in data['region_name']:
+            for asgname in data["ASG_NAME"]:
+                for path in mountpaths:
+                    print("Gettings stats for mount Path:", path)
+                    startDiskProcessing(asgname, region_name, path, data["Namespace"],
+                                    data["MetricName"], data["hosttemplatepath"],
+                                    data["icingahostfilepath"], db_handler, hostSetVar)
+    if len(hostSetVar) > 0:
+        for item in hostSetVar:
+            # hostSetVar.add((instanceData['instance_name'],instanceData['pub_ip'], instanceData['instance_id'],ASG_NAME,region_name))
+            generate_host_file(icingahostfilepath, hosttemplatepath, item[0], item[1], item[2], item[3], item[4])
+    db_handler.close_connection()
+
+    # #  #  Memory monitor start # # #
+    memory_monitor_config = script_home + "/monitor_memory.yaml"
+    db_handler = DbHandler(dbfile)
+    # # Loading the monitor_disk.yaml data
+    with open(memory_monitor_config, "r") as f:
+        data = yaml.safe_load(f)
+        for region_name in data['region_name']:
+            for asgname in data["ASG_NAME"]:
+                startMemoryProcessing(asgname, region_name, data["Namespace"], data["Metricname"],data["hosttemplatepath"], data["icingahostfilepath"], db_handler)
+
+    db_handler.close_connection()
+
+    # # # # Cpu Monitor starts from here
+    cpumonconfig = script_home + "/monitor_cpu.yaml"
+
     with open(cpumonconfig, "r") as f:
         data = yaml.safe_load(f)
         for region_name in data['region_name']:
@@ -146,42 +160,8 @@ def main():
                     continue
                 else:
                     obj._get_cpu_utilization(runninginstances, db_handler)
-
-    # # Loading the monitor_disk.yaml data
-    # with open(diskmntconfig, "r") as f:
-    #     data = yaml.safe_load(f)
-    #     mountpaths = data["mountpath"]
-    #     truncate_file(data["icingahostfilepath"])
-    #     icingahostfilepath = data["icingahostfilepath"]
-    #     hosttemplatepath = data["hosttemplatepath"]
-    #     for region_name in data['region_name']:
-    #         for asgname in data["ASG_NAME"]:
-    #             for path in mountpaths:
-    #                 print("Gettings stats for mount Path:", path)
-    #                 startDiskProcessing(asgname, region_name, path, data["Namespace"],
-    #                                 data["MetricName"], data["hosttemplatepath"],
-    #                                 data["icingahostfilepath"], db_handler, hostSetVar)
-    # if len(hostSetVar) > 0:
-    #     for item in hostSetVar:
-    #         # hostSetVar.add((instanceData['instance_name'],instanceData['pub_ip'], instanceData['instance_id'],ASG_NAME,region_name))
-    #         generate_host_file(icingahostfilepath, hosttemplatepath, item[0], item[1], item[2], item[3], item[4])
-    # db_handler.close_connection()
-    #
-    # # #  #  Memory monitor start # # #
-    # memory_monitor_config = script_home + "/config/monitor_memory.yaml"
-    # db_handler = DbHandler(dbfile)
-    # # # Loading the monitor_disk.yaml data
-    # with open(memory_monitor_config, "r") as f:
-    #     data = yaml.safe_load(f)
-    #     for region_name in data['region_name']:
-    #         for asgname in data["ASG_NAME"]:
-    #             startMemoryProcessing(asgname, region_name, data["Namespace"], data["Metricname"],data["hosttemplatepath"], data["icingahostfilepath"], db_handler)
-    #
-
     db_handler.close_connection()
-    end_time = time.perf_counter()
-    execution_time = end_time - start_time
-    print(f"Execution time: {execution_time:.6f} seconds")
+
 
 if __name__ == "__main__":
     main()

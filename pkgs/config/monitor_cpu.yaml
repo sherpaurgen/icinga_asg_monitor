@@ -1,0 +1,8 @@
+ASG_NAME:
+  - 'AsgUsh'
+  - 'TestASG'
+region_name:
+  - 'us-west-2'
+  - 'us-west-1'
+Namespace: 'CWAgent'
+MetricName: 'disk_used_percent'

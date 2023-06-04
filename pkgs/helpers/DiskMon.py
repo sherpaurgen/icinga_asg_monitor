@@ -125,7 +125,23 @@ class AsgDiskMonitor:
         except Exception as e:
             self.logger.warning("_get_ec2_detail Error:" + str(e))
 
-
+    def _reloadIcinga(self):
+        command1 = "/usr/sbin/icinga2 daemon -C > /dev/null 2>&1"
+        # command1 = "echo"
+        try:
+            subprocess.run(command1, shell=True, check=True)
+        except subprocess.CalledProcessError as e:
+            self.logger.warning(f"reloadIcinga: Command '{command1}' failed with exit code {e.returncode}")
+        else:
+            # Run the second command if the first command succeeded
+            command2 = "sudo systemctl reload icinga2"
+            # command2 = "echo"
+            try:
+                subprocess.run(command2, shell=True, check=True)
+            except subprocess.CalledProcessError as e:
+                self.logger.warning(f"reloadIcinga: Command '{command2}' failed with exit code {e.returncode}")
+            else:
+                self.logger.warning("Icinga2 Reloaded Successfully")
 
     def verify_asg(self):
         cw_client_asg = boto3.client('autoscaling', region_name=self.region_name)
