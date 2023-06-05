@@ -79,7 +79,7 @@ class AsgCPUMonitor:
                         self.logger.warning("_get_running_instances: Exception: "+str(e))
             return (running_instances)
 
-    def _get_metric_statistics_of_instance_savetodb(instancerunning,db_handler):
+    def _get_metric_statistics_of_instance_savetodb(self,instancerunning,db_handler):
         try:
             cw_cli = boto3.client('cloudwatch', region_name=instancerunning["region_name"])
             instance_id = instancerunning['instance_id']
