@@ -49,7 +49,7 @@ class DbHandler:
                                     total_memory REAL ,
                                     asg_name TEXT,
                                     region_name TEXT,
-                                    updatedat CURRENT_TIMESTAMP
+                                    updatedat datetime default current_timestampdatetime
                                 )''')
             self.conn.commit()
         except Exception as e:
@@ -88,10 +88,10 @@ class DbHandler:
                                     instance_name TEXT,
                                     public_ip TEXT,
                                     private_ip TEXT,
-                                    cpuusage REAL,
-                                    asgname TEXT,
+                                    cpu_usage REAL,
+                                    asg_name TEXT,
                                     region_name TEXT,
-                                    updatedat CURRENT_TIMESTAMP
+                                    updatedat TEXT DEFAULT CURRENT_TIMESTAMP
                                 )''')
             conn.commit()
             conn.close()
@@ -111,7 +111,7 @@ class DbHandler:
         cursor = conn.cursor()
         self.create_cpuusage_table()
         try:
-            cursor.execute("INSERT INTO cpu_usage (instance_id,instance_name,public_ip,private_ip,cpuusage,asgname,region_name) VALUES (?, ?, ?, ?,? ,?,?)",
+            cursor.execute("INSERT INTO cpu_usage (instance_id,instance_name,public_ip,private_ip,cpu_usage,asg_name,region_name) VALUES (?, ?, ?, ?,? ,?,?)",
                             (data["instance_id"],data["instance_name"],data["public_ip"],data["private_ip"], data["cpuusage"], data["asgname"],data["region_name"]))
             conn.commit()
             conn.close()

@@ -3,6 +3,7 @@ import boto3
 import logging
 from datetime import datetime, timedelta
 import subprocess
+import sqlite3
 
 
 class AsgDiskMonitor:
@@ -28,32 +29,30 @@ class AsgDiskMonitor:
         logger.addHandler(stream_handler)
         return logger
 
-    def _get_ec2_from_asg(self):
-        # verifying if ASG is has at least 1 instance
-        cw_client_asg = boto3.client('autoscaling', region_name=self.region_name)
-        response = cw_client_asg.describe_auto_scaling_groups(AutoScalingGroupNames=[self.asg_name])
-        # return false if the asg name is not found
-        if not response["AutoScalingGroups"]:
-            return (False)
-        ASG_EC2S = []
+    def _get_metriclist_from_asg(self):
         cloudwatch_client = boto3.client('cloudwatch', region_name=self.region_name)
         resp = cloudwatch_client.list_metrics(
             Namespace=self.namespace,
             MetricName=self.metric_name
         )
-        if "Metrics" in resp:
-            self.logger.warning("Metrics found in the GET request")
-            for metric in resp["Metrics"]:
-                if metric["Namespace"] == self.namespace and metric["MetricName"] == self.metric_name:
-                    if {'Value': self.asg_name, 'Name': 'AutoScalingGroupName'} in metric["Dimensions"] and {'Name': 'path', 'Value': self.mountpath} in metric["Dimensions"]:
-                        ASG_EC2S.append(metric)
-                else:
-                    continue
-            return (ASG_EC2S)
-        else:
-            self.logger.warning("Err _get_ec2_from_asg: Metrics not found. Please check response obj")
+        print(resp)
+        # if "Metrics" in resp:
+        #     self.logger.warning("Metrics found in the GET request")
+        #     for metric in resp["Metrics"]:
+        #         if metric["Namespace"] == self.namespace and metric["MetricName"] == self.metric_name:
+        #             if {'Value': self.asg_name, 'Name': 'AutoScalingGroupName'} in metric["Dimensions"] and {'Name': 'path', 'Value': self.mountpath} in metric["Dimensions"]:
+        #                 ASG_metriclist_for_mountPoint.append(metric)
+        #         else:
+        #             continue
+        #     #returns the metric list
+        #     print("ASG_metriclist_for_mountPoint--------")
+        #     print(ASG_metriclist_for_mountPoint)
+        #     print()
+        #     return (ASG_metriclist_for_mountPoint)
+        # else:
+        #     self.logger.warning("Err: _get_metriclist_from_asg: Metrics not found. Please check response obj")
 
-    def _get_disk_used_percent(self, ec2metric, db_handler):
+    def _get_disk_used_percent(self, ec2_ASG_metriclist, db_handler):
         try:
             start_time = datetime.utcnow() - timedelta(minutes=5)
             end_time = datetime.utcnow()

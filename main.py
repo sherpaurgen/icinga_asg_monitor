@@ -7,16 +7,18 @@ import yaml
 import os
 from helpers.dbHandler import DbHandler
 import time
+import concurrent
+import boto3
 
 start_time = time.perf_counter()
 def startMemoryProcessing(ASG_NAME, region_name, Namespace,
                           MetricName,hosttemplatepath,
                           icingahostfilepath,db_handler):
-    adm1 = AsgMemoryMonitor(asg_name=ASG_NAME, region_name=region_name, namespace=Namespace,
-                          metric_name=MetricName, hosttemplatepath=hosttemplatepath,
-                          icingahostfilepath=icingahostfilepath)
-    if adm1.verify_asg() is False:
-        return
+    adm1 = AsgMemoryMonitor(asg_name = ASG_NAME, region_name=region_name, namespace=Namespace,
+                          metric_name = MetricName, hosttemplatepath=hosttemplatepath,
+                          icingahostfilepath = icingahostfilepath)
+    # if adm1.verify_asg() is False:
+    #     return
     metric_list_with_asgec2=adm1._get_metric_instanceid_from_asg()
     # print(metric_list_with_asgec2)
     runningec2=adm1._get_running_ec2(metric_list_with_asgec2)
@@ -34,57 +36,17 @@ def startMemoryProcessing(ASG_NAME, region_name, Namespace,
         adm1._get_memory_usage(ecm,db_handler)
 
 
-def startDiskProcessing(ASG_NAME, region_name, mountpath, Namespace,
+def get_ec2_ASG_metriclist(ASG_NAME, region_name, mountpath, Namespace,
                     MetricName, hosttemplatepath,
                     icingahostfilepath, db_handler, hostSetVar):
     adm1 = AsgDiskMonitor(asg_name=ASG_NAME, region_name=region_name, mountpath=mountpath, namespace=Namespace,
-                          metric_name=MetricName, hosttemplatepath=hosttemplatepath,
-                          icingahostfilepath=icingahostfilepath)
-    if adm1.verify_asg() is False:
-        return
+                          metric_name=MetricName, hosttemplatepath=hosttemplatepath,icingahostfilepath=icingahostfilepath)
+    print("details...")
+    print(ASG_NAME, region_name, mountpath, Namespace,
+                    MetricName, hosttemplatepath,
+                    icingahostfilepath)
 
-    ec2_ASG = adm1._get_ec2_from_asg()
-
-    if ec2_ASG is False:
-        return
-    asgInstanceId = []
-    ec2ListRunning = []
-    for ec2cwdata in ec2_ASG:
-        for item in ec2cwdata["Dimensions"]:
-            if item['Name'] == 'InstanceId':
-                asgInstanceId.append(item['Value'])
-                break
-            else:
-                continue
-    if len(asgInstanceId) > 0:
-        # print('------asgInstanceId-------')
-        # print(asgInstanceId)
-        for instanceid in asgInstanceId:
-            instanceData = adm1._get_ec2_detail(instanceid)
-            # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2/client/describe_instance_status.html
-            # 16 is equivalent to running state
-            if instanceData and instanceData['state'] == 16:
-                ec2ListRunning.append(instanceData['instance_id'])
-                hostSetVar.add((instanceData['instance_name'],
-                                instanceData['pub_ip'], instanceData['instance_id'], ASG_NAME, region_name))
-
-                # adm1._generate_host_file(instanceData['instance_name'],
-                #                          instanceData['pub_ip'], instanceData['instance_id'])
-    # Writing to ASG_EC2_Host.conf
-    if not ec2_ASG or len(ec2ListRunning) < 1:
-        adm1.logger.warning("Empty ec2_ASG OR ec2ListRunning list")
-    else:
-        for instance in ec2ListRunning:
-            for ec2metric in ec2_ASG:
-                for data in ec2metric['Dimensions']:
-                    if data.get('Name') == 'InstanceId':
-                        instanceid = data.get('Value')
-                        if instanceid == instance:
-                            adm1._get_disk_used_percent(ec2metric, db_handler)
-                    else:
-                        continue
-    ec2ListRunning.clear()
-    adm1._reloadIcinga()
+    #adm1._get_disk_used_percent(ec2_ASG_metriclist, db_handler)
 
 
 def truncate_file(icingahostfilepath):
@@ -122,11 +84,13 @@ def reloadIcinga(self):
             print(f"reloadIcinga: Command '{command2}' failed with exit code {e.returncode}")
         else:
             print("Icinga2 Reloaded Successfully")
+def ListAsgInRegion(region_name):
+    cw_client_asg = boto3.client('autoscaling', region_name=region_name)
+    response = cw_client_asg.describe_auto_scaling_groups()
+    print(response)
+
 def main():
     hostSetVar = set()
-    icingahostfilepath = ""
-    hosttemplatepath = ""
-
     script_home = os.path.dirname(os.path.abspath(__file__))
     diskmntconfig = script_home + "/config/monitor_disk.yaml"
     dbfile = script_home + "/icinga.db"
@@ -135,37 +99,38 @@ def main():
     db_handler.truncate_table()
     # Start fetching cpu info
     cpumonconfig = script_home + "/config/monitor_cpu.yaml"
+    runninginstances=[]
     with open(cpumonconfig, "r") as f:
         data = yaml.safe_load(f)
+        futures = []
         for region_name in data['region_name']:
-            for asgname in data['ASG_NAME']:
-                obj = AsgCPUMonitor(asgname, region_name, data["Namespace"], data["MetricName"])
-                db_handler = DbHandler(dbfile)
-                runninginstances = obj._get_running_instances()
-                if runninginstances is False:
-                    continue
-                else:
-                    obj._get_cpu_utilization(runninginstances, db_handler)
+            print(f"Region {region_name}......")
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                for asgname in data['ASG_NAME']:
+                    obj = AsgCPUMonitor(asgname, region_name, data["Namespace"], data["MetricName"])
+                    db_handler = DbHandler(dbfile)
+                    futures.append(executor.submit(obj._get_running_instances,runninginstances))
+                for fut in concurrent.futures.as_completed(futures):
+                    pass
 
-    # # Loading the monitor_disk.yaml data
+
+    print(runninginstances)
+    obj._get_cpu_utilization(runninginstances, db_handler)
+    # Loading the monitor_disk.yaml data
     # with open(diskmntconfig, "r") as f:
     #     data = yaml.safe_load(f)
     #     mountpaths = data["mountpath"]
     #     truncate_file(data["icingahostfilepath"])
     #     icingahostfilepath = data["icingahostfilepath"]
     #     hosttemplatepath = data["hosttemplatepath"]
-    #     for region_name in data['region_name']:
-    #         for asgname in data["ASG_NAME"]:
-    #             for path in mountpaths:
-    #                 print("Gettings stats for mount Path:", path)
-    #                 startDiskProcessing(asgname, region_name, path, data["Namespace"],
-    #                                 data["MetricName"], data["hosttemplatepath"],
-    #                                 data["icingahostfilepath"], db_handler, hostSetVar)
-    # if len(hostSetVar) > 0:
-    #     for item in hostSetVar:
-    #         # hostSetVar.add((instanceData['instance_name'],instanceData['pub_ip'], instanceData['instance_id'],ASG_NAME,region_name))
-    #         generate_host_file(icingahostfilepath, hosttemplatepath, item[0], item[1], item[2], item[3], item[4])
-    # db_handler.close_connection()
+    #     with concurrent.futures.ThreadPoolExecutor() as executor:
+    #         futures = [executor.submit(ListAsgInRegion, reg) for reg in data["region_name"]]
+    #         results = [future.result() for future in concurrent.futures.as_completed(futures)]
+    #     print('-----------results-----2023')
+    #     print(results)
+
+    #
+
     #
     # # #  #  Memory monitor start # # #
     # memory_monitor_config = script_home + "/config/monitor_memory.yaml"
@@ -181,7 +146,7 @@ def main():
     db_handler.close_connection()
     end_time = time.perf_counter()
     execution_time = end_time - start_time
-    print(f"Execution time: {execution_time:.6f} seconds")
+    print(f"Total Execution time: {execution_time:.6f} seconds")
 
 if __name__ == "__main__":
     main()
