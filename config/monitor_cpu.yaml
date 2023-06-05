@@ -1,11 +1,14 @@
 icingahostfilepath: '/tmp/ASG_EC2_Host.conf'
 hosttemplatepath: '/tmp/ec2host.j2'
 ASG_NAME:
+  - 'asdf'
   - 'MoodleCloudASG'
-  - 'ushg'
+  - 'asdfww'
   - 'Demoasg'
 region_name:
-  - 'us-west-2'
+  - 'us-east-1'
   - 'us-east-2'
+  - 'us-west-2'
+
 Namespace: 'AWS/EC2'
 MetricName: 'CPUUtilization'

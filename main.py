@@ -115,6 +115,7 @@ def main():
 
 
     print(runninginstances)
+    print('------------------------------------------------------')
     obj._get_cpu_utilization(runninginstances, db_handler)
     # Loading the monitor_disk.yaml data
     # with open(diskmntconfig, "r") as f:

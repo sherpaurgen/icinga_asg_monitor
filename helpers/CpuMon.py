@@ -95,9 +95,9 @@ class AsgCPUMonitor:
             )
 
             if len(response["Datapoints"]) == 0:
-                print(f"0000 DP empty 0000 Region:"+instancerunning["region_name"]+instancerunning["instance_id"]+instancerunning["asg_name"])
+                print(f"Datapoint empty Region:"+instancerunning["region_name"]+instancerunning["instance_id"]+instancerunning["asg_name"])
                 print(response)
-                print()
+                print("Make sure cloudwatch agent is installed or check the CW logs")
 
             if len(response["Datapoints"])>0:
                 cpuusage = response["Datapoints"][0].get("Average", 0)
@@ -124,7 +124,7 @@ class AsgCPUMonitor:
             for instance in running_instances:
                 ft.append(executor.submit(self._get_metric_statistics_of_instance_savetodb,instance,db_handler))
             for future in concurrent.futures.as_completed(ft):
-                print(future.result())
+                pass
 
 def main():
     print("Use main.py")
