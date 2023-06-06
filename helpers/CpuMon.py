@@ -1,12 +1,9 @@
 #!/monitoringScripts/VENVT/bin/python
 import os
-import random
-import threading
 import boto3
 import logging
 from datetime import datetime, timedelta
 import concurrent.futures
-import time
 from helpers.dbHandler import DbHandler
 
 
@@ -91,7 +88,7 @@ class AsgCPUMonitor:
                         self.logger.warning("_get_running_instances: Exception: "+str(e))
             return (running_instances)
 
-    def _get_metric_statistics_of_instance_savetodb(self,instancerunning):
+    def _get_metric_statistics_of_instance_savetolist(self,instancerunning):
         try:
             script_home = os.path.dirname(os.path.abspath(__file__))
             dbfile = script_home + "/icinga.db"
@@ -139,7 +136,7 @@ class AsgCPUMonitor:
         allcpudata=[]
         with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
             for instance in running_instances:
-                ft.append(executor.submit(self._get_metric_statistics_of_instance_savetodb,instance))
+                ft.append(executor.submit(self._get_metric_statistics_of_instance_savetolist,instance))
             for future in concurrent.futures.as_completed(ft):
                 allcpudata.append(future.result())
         return allcpudata

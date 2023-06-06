@@ -113,13 +113,13 @@ def main():
         #                                 d.get('asg_name'),d.get('region_name'))
         db_handler.close_connection()
 
-    # with open(icingaconfigpath, "r") as f:
-    #     icingadata = yaml.safe_load(f)
-    #     icingahostfilepath = script_home + "/config/" + icingadata["icingahostfilepath"]
-    #     hosttemplatepath = script_home + "/config/" + icingadata["hosttemplatepath"]
-    #     truncate_file(icingahostfilepath)
-    # # Generating the icinga host file happens here
-    # generate_host_file(icingahostfilepath, hosttemplatepath)
+    with open(icingaconfigpath, "r") as f:
+        icingadata = yaml.safe_load(f)
+        icingahostfilepath = script_home + "/config/" + icingadata["icingahostfilepath"]
+        hosttemplatepath = script_home + "/config/" + icingadata["hosttemplatepath"]
+        truncate_file(icingahostfilepath)
+    # Generating the icinga host file happens here
+    generate_host_file(icingahostfilepath, hosttemplatepath)
     # end
 
     #Memory monitor starts here
@@ -137,10 +137,6 @@ def main():
         rows = cursor.fetchall()
         for row in rows:
             meminstanceobj = startMemoryProcessing(row[0], row[1],row[2], data["Namespace"], data["Metricname"],db_handler_mem)
-
-
-
-
 
 
     db_handler_mem.close_connection()
