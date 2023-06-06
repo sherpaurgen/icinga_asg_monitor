@@ -12,29 +12,10 @@ import boto3
 import sqlite3
 
 start_time = time.perf_counter()
-def startMemoryProcessing(ASG_NAME, region_name, Namespace,
-                          MetricName,hosttemplatepath,
-                          icingahostfilepath,db_handler):
-    adm1 = AsgMemoryMonitor(asg_name = ASG_NAME, region_name=region_name, namespace=Namespace,
-                          metric_name = MetricName, hosttemplatepath=hosttemplatepath,
-                          icingahostfilepath = icingahostfilepath)
-    # if adm1.verify_asg() is False:
-    #     return
-    metric_list_with_asgec2=adm1._get_metric_instanceid_from_asg()
-    # print(metric_list_with_asgec2)
-    runningec2=adm1._get_running_ec2(metric_list_with_asgec2)
-    if runningec2 is False:
-        return
-    # Preparing list for ec2 that are powered on/running i-0f854388d312bc919
-    running_ec2_metric_list = []
-
-    for id in runningec2:
-        for dim in metric_list_with_asgec2:
-            if dim["Dimensions"][0]["Value"] == id:
-                running_ec2_metric_list.append(dim)
-
-    for ecm in running_ec2_metric_list:
-        adm1._get_memory_usage(ecm,db_handler)
+def startMemoryProcessing(instance_id,region_name,asg_name, Namespace,
+                          MetricName,db_handler):
+    vmobj = AsgMemoryMonitor()
+    vmobj._get_memory_usage(instance_id,region_name,asg_name,Namespace,MetricName,db_handler)
 
 
 def get_ec2_ASG_metriclist(ASG_NAME, region_name, mountpath, Namespace,
@@ -69,7 +50,6 @@ def generate_host_file(icingahostfilepath, hosttemplatepath):
         with open(icingahostfilepath, 'a') as output_file:
             output_file.write(rendered_template)
         #(56, 'i-04678cd0a99c43075', 'Demoasg_i-04678cd0a99c43075', '52.39.213.223', '172.31.39.118', 0.0989988876529518, 'Demoasg', 'us-west-2', '2023-06-06 09:15:28')
-    # Close the cursor and the database connection
     cursor.close()
     con.close()
 
@@ -122,40 +102,53 @@ def main():
                     futures.append(executor.submit(obj._get_running_instances,runninginstances))
                 for fut in concurrent.futures.as_completed(futures):
                     pass
-    obj._get_cpu_utilization(runninginstances, db_handler)
+    print("RUNNING ......")
+    print(runninginstances)
+    print()
+    # get cpu utilization from the list of running instaces : here db_handler.close_connection() is done inside fxn
+    cpudata=obj._get_cpu_utilization(runninginstances)
+    for d in cpudata:
+        db_handler.insert_cpuusage_data(d)
+        # db_handler.insert_cpuusage_data(d.get("instance_id"),d.get('instance_name'),d.get('public_ip'),d.get('private_ip'),d.get('cpu_usage'),
+        #                                 d.get('asg_name'),d.get('region_name'))
+        db_handler.close_connection()
 
-    with open(icingaconfigpath, "r") as f:
-        icingadata = yaml.safe_load(f)
-        icingahostfilepath = script_home + "/config/" + icingadata["icingahostfilepath"]
-        hosttemplatepath = script_home + "/config/" + icingadata["hosttemplatepath"]
-        truncate_file(icingahostfilepath)
-    print("-------====--------")
-    print(icingahostfilepath,hosttemplatepath)
-    #     with concurrent.futures.ThreadPoolExecutor() as executor:
-    #         futures = [executor.submit(ListAsgInRegion, reg) for reg in data["region_name"]]
-    #         results = [future.result() for future in concurrent.futures.as_completed(futures)]
-    #     print('-----------results-----2023')
-    #     print(results)
+    # with open(icingaconfigpath, "r") as f:
+    #     icingadata = yaml.safe_load(f)
+    #     icingahostfilepath = script_home + "/config/" + icingadata["icingahostfilepath"]
+    #     hosttemplatepath = script_home + "/config/" + icingadata["hosttemplatepath"]
+    #     truncate_file(icingahostfilepath)
+    # # Generating the icinga host file happens here
+    # generate_host_file(icingahostfilepath, hosttemplatepath)
+    # end
 
-    #
+    #Memory monitor starts here
+    memory_monitor_config = script_home + "/config/monitor_memory.yaml"
 
-    #
-    # # #  #  Memory monitor start # # #
-    # memory_monitor_config = script_home + "/config/monitor_memory.yaml"
-    # db_handler = DbHandler(dbfile)
-    # # # Loading the monitor_disk.yaml data
-    # with open(memory_monitor_config, "r") as f:
-    #     data = yaml.safe_load(f)
-    #     for region_name in data['region_name']:
-    #         for asgname in data["ASG_NAME"]:
-    #             startMemoryProcessing(asgname, region_name, data["Namespace"], data["Metricname"],data["hosttemplatepath"], data["icingahostfilepath"], db_handler)
-    #
+    with open(memory_monitor_config, "r") as f:
+        data = yaml.safe_load(f)
 
-    db_handler.close_connection()
+    #get
+    db_handler_mem = DbHandler(dbfile)
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        con = sqlite3.connect('icinga.db')
+        cursor = con.cursor()
+        cursor.execute('SELECT instance_id,region_name,asg_name  FROM cpu_usage')
+        rows = cursor.fetchall()
+        for row in rows:
+            meminstanceobj = startMemoryProcessing(row[0], row[1],row[2], data["Namespace"], data["Metricname"],db_handler_mem)
+
+
+
+
+
+
+    db_handler_mem.close_connection()
     end_time = time.perf_counter()
     execution_time = end_time - start_time
-    generate_host_file(icingahostfilepath,hosttemplatepath)
     print(f"Total Execution time: {execution_time:.6f} seconds")
-
 if __name__ == "__main__":
     main()
+
+
+#i-04678cd0a99c43075 --demoasg

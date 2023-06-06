@@ -1,27 +1,13 @@
-import concurrent.futures
+import boto3
 
-# Shared counter
-import time
 
-count = 0
+ec2_client = boto3.client('ec2',region_name='us-west-2')
 
-# Function to increment the counter
-def increment_counter():
-    global count
-    time.sleep(1)
-    count=count+1
-    print(count)
 
-# Number of worker threads
-num_workers = 8
+instance_id = 'i-03846106c36376830'
 
-# Create a ThreadPoolExecutor
-with concurrent.futures.ThreadPoolExecutor(max_workers=num_workers) as executor:
-    # Submit the increment_counter function to the executor multiple times
-    futures = [executor.submit(increment_counter) for _ in range(100)]
 
-    # Wait for all tasks to complete and retrieve their results
-    results = [future.result() for future in concurrent.futures.as_completed(futures)]
+response = ec2_client.describe_instances(InstanceIds=[instance_id])
+print(response)
 
-# Print the final value of the counter
-print("Final count:", count)
+

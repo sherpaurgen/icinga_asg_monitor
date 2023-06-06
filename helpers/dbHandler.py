@@ -106,7 +106,7 @@ class DbHandler:
         except Exception as e:
             self.dblogger.warning("DB Error, insert_diskusage_data: " + str(e))
 
-    def insert_cpuusage_data(self, data):
+    def insert_cpuusage_data(self,data):
         conn = sqlite3.connect(self.db_file_path)
         cursor = conn.cursor()
         self.create_cpuusage_table()

@@ -1,5 +1,3 @@
-icingahostfilepath: '/tmp/ASG_EC2_Host.conf'
-hosttemplatepath: '/tmp/ec2host.j2'
 ASG_NAME:
   - 'asdfww'
   - 'asdf'
