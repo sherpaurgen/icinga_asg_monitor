@@ -1,8 +1,2 @@
-ASG_NAME:
-  - 'Demoasg'
-  - 'MoodleCloudASG'
-region_name:
-  - 'us-west-2'
-  - 'us-west-1'
 Namespace: 'CWAgent'
 Metricname: 'mem_used_percent'

@@ -21,42 +21,46 @@ class AsgMemoryMonitor:
         logger.addHandler(file_handler)
         logger.addHandler(stream_handler)
         return logger
+     #instance_id,region_name,asg_name,Namespace,MetricName
+    def _get_memory_usage(self,instance_id,region_name,asg_name,Namespace,MetricName):
+        try:
+            cloudwatch_client = boto3.client('cloudwatch',region_name=region_name)
+            end_time = datetime.utcnow()
+            start_time = end_time - timedelta(minutes=5)
+            response = cloudwatch_client.get_metric_data(
+                MetricDataQueries=[
+                    {
+                        'Id': 'memory_utilization',
+                        'MetricStat': {
+                            'Metric': {
+                                'Namespace': Namespace,
+                                'MetricName': MetricName,
+                                'Dimensions': [
+                                    {
+                                        'Name': 'InstanceId',
+                                        'Value': instance_id
+                                    },
+                                ]
+                            },
+                            'Period': 60,
+                            'Stat': 'Average',
+                        }
+                    },
+                ],
+                StartTime=start_time,
+                EndTime=end_time,
+            )
+            data_points = response['MetricDataResults'][0]['Values']
 
-    def _get_memory_usage(self,instance_id,region_name,asg_name,namespace,metric_name):
-        cloudwatch_client = boto3.client('cloudwatch',region_name=region_name)
-        end_time = datetime.utcnow()
-        start_time = end_time - timedelta(minutes=5)
-        response = cloudwatch_client.get_metric_data(
-            MetricDataQueries=[
-                {
-                    'Id': 'memory_utilization',
-                    'MetricStat': {
-                        'Metric': {
-                            'Namespace': namespace,
-                            'MetricName': metric_name,
-                            'Dimensions': [
-                                {
-                                    'Name': 'InstanceId',
-                                    'Value': instance_id
-                                },
-                            ]
-                        },
-                        'Period': 60,
-                        'Stat': 'Average',
-                    }
-                },
-            ],
-            StartTime=start_time,
-            EndTime=end_time,
-        )
-        data_points = response['MetricDataResults'][0]['Values']
-
-        if data_points:
-            memory_usage_percent = data_points[-1]
-        else:
-            memory_usage_percent = 1
-        print(f"{memory_usage_percent}% used in {instance_id}")
-
+            if data_points:
+                memory_usage_percent = data_points[-1]
+            else:
+                memory_usage_percent = 1
+            # print(f"{memory_usage_percent}% used in {instance_id}")
+            return {'instance_id': instance_id,
+                    'region_name': region_name, 'asg_name': asg_name,'mem_used':memory_usage_percent}
+        except Exception as e:
+            self.logger.warning("_get_memory_usage Exception: "+str(e))
 def main():
     print("Use main")
 

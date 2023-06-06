@@ -38,46 +38,6 @@ class DbHandler:
             self.conn.commit()
         except Exception as e:
             self.dblogger.warning("DB Error, create_diskusage_table: " + str(e))
-
-    def create_memusage_table(self):
-        try:
-            self.cursor.execute('''CREATE TABLE IF NOT EXISTS mem_usage (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                    instance_id TEXT,
-                                    public_ip TEXT,
-                                    memusage REAL,
-                                    total_memory REAL ,
-                                    asg_name TEXT,
-                                    region_name TEXT,
-                                    updatedat datetime default current_timestampdatetime
-                                )''')
-            self.conn.commit()
-        except Exception as e:
-            self.dblogger.warning("DB Error, create_memusage_table: " + str(e))
-
-    def insert_memusage_data(self, data):
-        conn = sqlite3.connect(self.db_file_path)
-        cursor = conn.cursor()
-        try:
-            cursor.execute("INSERT INTO mem_usage (instance_id,public_ip, memusage,total_memory, asg_name,region_name) VALUES (?,?,?,?,?,?)",
-                            (data["instance_id"], data["public_ip"], data["memusage"],data["total_memory"], data["asg_name"],data["region_name"]))
-            conn.commit()
-            conn.close()
-        except Exception as e:
-            self.dblogger.warning("DB Error, insert_memusage_data: " + str(e))
-
-    def truncate_table(self):
-        conn = sqlite3.connect(self.db_file_path)
-        cursor = conn.cursor()
-        try:
-            cursor.execute("DELETE FROM cpu_usage")
-            cursor.execute("DELETE FROM mem_usage")
-            cursor.execute("DELETE FROM disk_usage")
-            conn.commit()
-            conn.close()
-        except Exception as e:
-            self.dblogger.warning("DB Error, Truncate tables: " + str(e))
-
     def create_cpuusage_table(self):
         try:
             conn = sqlite3.connect(self.db_file_path)
@@ -97,6 +57,45 @@ class DbHandler:
             conn.close()
         except Exception as e:
             self.dblogger.warning("DB Error, create_cpuusage_table: " + str(e))
+    def create_memusage_table(self):
+        try:
+            self.cursor.execute('''CREATE TABLE IF NOT EXISTS mem_usage (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                    instance_id TEXT,
+                                    asg_name TEXT,
+                                    region_name TEXT,
+                                    mem_used REAL,
+                                    updatedat TEXT DEFAULT CURRENT_TIMESTAMP
+                                )''')
+            self.conn.commit()
+            self.conn.close()
+        except Exception as e:
+            self.dblogger.warning("DB Error, create_memusage_table: " + str(e))
+
+    def insert_memusage_data(self, data):
+        conn = sqlite3.connect(self.db_file_path)
+        cursor = conn.cursor()
+        try:
+            cursor.execute("INSERT INTO mem_usage (instance_id, asg_name,region_name,mem_used) VALUES (?,?,?,?)",
+                            (data["instance_id"], data["asg_name"],data["region_name"],data["mem_used"]))
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            self.dblogger.warning("DB Error, insert_memusage_data: " + str(e))
+
+    def truncate_table(self):
+        conn = sqlite3.connect(self.db_file_path)
+        cursor = conn.cursor()
+        try:
+            cursor.execute("DELETE FROM cpu_usage")
+            cursor.execute("DELETE FROM mem_usage")
+            cursor.execute("DELETE FROM disk_usage")
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            self.dblogger.warning("DB Error, Truncate tables: " + str(e))
+
+
 
     def insert_diskusage_data(self, data):
         try:

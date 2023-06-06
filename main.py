@@ -13,10 +13,10 @@ import sqlite3
 
 start_time = time.perf_counter()
 def startMemoryProcessing(instance_id,region_name,asg_name, Namespace,
-                          MetricName,db_handler):
+                          MetricName):
     vmobj = AsgMemoryMonitor()
-    vmobj._get_memory_usage(instance_id,region_name,asg_name,Namespace,MetricName,db_handler)
-
+    memstatlist = vmobj._get_memory_usage(instance_id,region_name,asg_name,Namespace,MetricName,)
+    return(memstatlist)
 
 def get_ec2_ASG_metriclist(ASG_NAME, region_name, mountpath, Namespace,
                     MetricName, hosttemplatepath,
@@ -112,6 +112,9 @@ def main():
         # db_handler.insert_cpuusage_data(d.get("instance_id"),d.get('instance_name'),d.get('public_ip'),d.get('private_ip'),d.get('cpu_usage'),
         #                                 d.get('asg_name'),d.get('region_name'))
         db_handler.close_connection()
+    # cpu data sample [{'instance_id': 'i-03450ec3cfc011cda', 'public_ip': '54.244.136.168', 'private_ip': '172.31.40.150',
+    #   'instance_name': 'MoodleCloudASG_i-03450ec3cfc011cda', 'cpuusage': 0.5607262471355686,
+    #   'asgname': 'MoodleCloudASG', 'region_name': 'us-west-2'},]
 
     with open(icingaconfigpath, "r") as f:
         icingadata = yaml.safe_load(f)
@@ -122,23 +125,26 @@ def main():
     generate_host_file(icingahostfilepath, hosttemplatepath)
     # end
 
-    #Memory monitor starts here
+    #Memory stat fetch starts here
     memory_monitor_config = script_home + "/config/monitor_memory.yaml"
-
     with open(memory_monitor_config, "r") as f:
-        data = yaml.safe_load(f)
+        datafh = yaml.safe_load(f)
 
-    #get
-    db_handler_mem = DbHandler(dbfile)
+    memfuture=[]
+    allmemdata=[]
+
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        con = sqlite3.connect('icinga.db')
-        cursor = con.cursor()
-        cursor.execute('SELECT instance_id,region_name,asg_name  FROM cpu_usage')
-        rows = cursor.fetchall()
-        for row in rows:
-            meminstanceobj = startMemoryProcessing(row[0], row[1],row[2], data["Namespace"], data["Metricname"],db_handler_mem)
+        for obz in cpudata:
+            memfuture.append(executor.submit(startMemoryProcessing, obz["instance_id"],obz["region_name"],obz["asgname"],datafh["Namespace"],datafh["Metricname"]))
+            for future in concurrent.futures.as_completed(memfuture):
+                allmemdata.append(future.result())  # this contains mem stat of all instances
 
-
+    #allmemdata--> [{'instance_id': 'i-03450ec3cfc011cda', 'region_name': 'us-west-2', 'asg_name': 'MoodleCloudASG', 'mem_used': 24.977146786393238}]
+    print("\n\n")
+    print(allmemdata)
+    db_handler_mem = DbHandler(dbfile)
+    for md in allmemdata:
+        db_handler_mem.insert_memusage_data(md)
     db_handler_mem.close_connection()
     end_time = time.perf_counter()
     execution_time = end_time - start_time
