@@ -111,7 +111,6 @@ class AsgCPUMonitor:
                 self.logger.warning("_get_metric_statistics_of_instance_savetodb : public ip not found, Using private ip for " + instance_id +str(e))
             data = { "instance_id": instance_id, "public_ip": public_ip, "private_ip": instancerunning["private_ip"], "instance_name": instancerunning["instance_name"], "cpuusage": cpuusage,
                     "asgname": self.asg_name, "region_name": self.region_name }
-            print(data)
             db_handler.insert_cpuusage_data(data)
         except Exception as e:
             self.logger.warning("_get_metric_statistics_of_instance_savetodb: Exception: " + str(e))

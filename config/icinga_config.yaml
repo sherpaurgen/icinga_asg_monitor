@@ -1,0 +1,2 @@
+icingahostfilepath: 'ASG_EC2_Host.conf'
+hosttemplatepath: 'ec2host.j2'

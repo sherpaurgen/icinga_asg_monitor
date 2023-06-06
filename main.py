@@ -9,6 +9,7 @@ from helpers.dbHandler import DbHandler
 import time
 import concurrent
 import boto3
+import sqlite3
 
 start_time = time.perf_counter()
 def startMemoryProcessing(ASG_NAME, region_name, Namespace,
@@ -55,17 +56,24 @@ def truncate_file(icingahostfilepath):
     subprocess.call(['chmod', '0644', icingahostfilepath])
 
 
-def generate_host_file(icingahostfilepath, hosttemplatepath, instance_name, pub_ip, instance_id, asg_name, region_name):
-    # icingahostfilepath,hosttemplatepath, instance_name, pub_ip, instance_id,asg_name,region_name
+def generate_host_file(icingahostfilepath, hosttemplatepath):
+    con = sqlite3.connect('icinga.db')
+    cursor = con.cursor()
+    cursor.execute('SELECT * FROM cpu_usage')
+    rows = cursor.fetchall()
     with open(hosttemplatepath, 'r') as file:
         template_content = file.read()
-
     template = Template(template_content)
-    finalhostname=instance_name+instance_id
-    rendered_template = template.render(hostname=finalhostname, address=pub_ip, asg_name=asg_name,
-                                        instance_id=instance_id)
-    with open(icingahostfilepath, 'a') as output_file:
-        output_file.write(rendered_template)
+    for row in rows:
+        rendered_template = template.render(hostname=row[2], address=row[3], asg_name=row[6], instance_id=row[1])
+        with open(icingahostfilepath, 'a') as output_file:
+            output_file.write(rendered_template)
+        #(56, 'i-04678cd0a99c43075', 'Demoasg_i-04678cd0a99c43075', '52.39.213.223', '172.31.39.118', 0.0989988876529518, 'Demoasg', 'us-west-2', '2023-06-06 09:15:28')
+    # Close the cursor and the database connection
+    cursor.close()
+    con.close()
+
+    # # icingahostfilepath,hosttemplatepath, instance_name, pub_ip, instance_id,asg_name,region_name
 
 def reloadIcinga(self):
     command1 = "/usr/sbin/icinga2 daemon -C > /dev/null 2>&1"
@@ -84,6 +92,7 @@ def reloadIcinga(self):
             print(f"reloadIcinga: Command '{command2}' failed with exit code {e.returncode}")
         else:
             print("Icinga2 Reloaded Successfully")
+
 def ListAsgInRegion(region_name):
     cw_client_asg = boto3.client('autoscaling', region_name=region_name)
     response = cw_client_asg.describe_auto_scaling_groups()
@@ -92,12 +101,13 @@ def ListAsgInRegion(region_name):
 def main():
     hostSetVar = set()
     script_home = os.path.dirname(os.path.abspath(__file__))
-    diskmntconfig = script_home + "/config/monitor_disk.yaml"
     dbfile = script_home + "/icinga.db"
     # setupLocalDb(dbfile)
     db_handler = DbHandler(dbfile)
     db_handler.truncate_table()
+
     # Start fetching cpu info
+    icingaconfigpath = script_home + "/config/icinga_config.yaml"
     cpumonconfig = script_home + "/config/monitor_cpu.yaml"
     runninginstances=[]
     with open(cpumonconfig, "r") as f:
@@ -112,18 +122,15 @@ def main():
                     futures.append(executor.submit(obj._get_running_instances,runninginstances))
                 for fut in concurrent.futures.as_completed(futures):
                     pass
-
-
-    print(runninginstances)
-    print('------------------------------------------------------')
     obj._get_cpu_utilization(runninginstances, db_handler)
-    # Loading the monitor_disk.yaml data
-    # with open(diskmntconfig, "r") as f:
-    #     data = yaml.safe_load(f)
-    #     mountpaths = data["mountpath"]
-    #     truncate_file(data["icingahostfilepath"])
-    #     icingahostfilepath = data["icingahostfilepath"]
-    #     hosttemplatepath = data["hosttemplatepath"]
+
+    with open(icingaconfigpath, "r") as f:
+        icingadata = yaml.safe_load(f)
+        icingahostfilepath = script_home + "/config/" + icingadata["icingahostfilepath"]
+        hosttemplatepath = script_home + "/config/" + icingadata["hosttemplatepath"]
+        truncate_file(icingahostfilepath)
+    print("-------====--------")
+    print(icingahostfilepath,hosttemplatepath)
     #     with concurrent.futures.ThreadPoolExecutor() as executor:
     #         futures = [executor.submit(ListAsgInRegion, reg) for reg in data["region_name"]]
     #         results = [future.result() for future in concurrent.futures.as_completed(futures)]
@@ -147,6 +154,7 @@ def main():
     db_handler.close_connection()
     end_time = time.perf_counter()
     execution_time = end_time - start_time
+    generate_host_file(icingahostfilepath,hosttemplatepath)
     print(f"Total Execution time: {execution_time:.6f} seconds")
 
 if __name__ == "__main__":
