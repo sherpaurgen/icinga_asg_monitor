@@ -62,7 +62,7 @@ class AsgMemoryMonitor:
                 memory_usage_percent = 0
             # print(f"{memory_usage_percent}% used in {instance_id}")
             finalval={'instance_id': instance_id,'region_name': region_name, 'asg_name': asg_name,'mem_used':memory_usage_percent}
-            print(finalval)
+            #print(finalval)
             return finalval
         except Exception as e:
             self.logger.warning("_get_memory_usage Exception: "+str(e))

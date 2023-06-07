@@ -2,14 +2,12 @@ from helpers.DiskMon import AsgDiskMonitor
 from helpers.MemoryMonitor import AsgMemoryMonitor
 from helpers.CpuMon import AsgCPUMonitor
 from jinja2 import Template
-import subprocess
-import yaml
-import os
+from helpers.MainLogger import setup_logger
+import os,yaml,subprocess,time,concurrent,boto3,sqlite3
 from helpers.dbHandler import DbHandler
-import time
-import concurrent
-import boto3
-import sqlite3
+from datetime import datetime, timedelta
+
+logger = setup_logger()
 
 start_time = time.perf_counter()
 def startMemoryProcessing(instance_id,region_name,asg_name, Namespace,
@@ -23,11 +21,6 @@ def get_ec2_ASG_metriclist(ASG_NAME, region_name, mountpath, Namespace,
                     icingahostfilepath, db_handler, hostSetVar):
     adm1 = AsgDiskMonitor(asg_name=ASG_NAME, region_name=region_name, mountpath=mountpath, namespace=Namespace,
                           metric_name=MetricName, hosttemplatepath=hosttemplatepath,icingahostfilepath=icingahostfilepath)
-    print("details...")
-    print(ASG_NAME, region_name, mountpath, Namespace,
-                    MetricName, hosttemplatepath,
-                    icingahostfilepath)
-
     #adm1._get_disk_used_percent(ec2_ASG_metriclist, db_handler)
 
 
@@ -78,6 +71,56 @@ def ListAsgInRegion(region_name):
     response = cw_client_asg.describe_auto_scaling_groups()
     print(response)
 
+def get_cpu_utilization(running_instances):
+    ft = []
+    allcpudata=[]
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        for instance in running_instances:
+            ft.append(executor.submit(get_metric_statistics_of_instance_savetolist,instance))
+        for future in concurrent.futures.as_completed(ft):
+            allcpudata.append(future.result())
+    return allcpudata
+
+def get_metric_statistics_of_instance_savetolist(instancerunning):
+    try:
+        cw_cli = boto3.client('cloudwatch', region_name=instancerunning["region_name"])
+        instance_id = instancerunning['instance_id']
+        dimensions = [{'Name': 'InstanceId', 'Value': instance_id }]
+        response = cw_cli.get_metric_statistics(
+            Namespace="AWS/EC2",
+            MetricName="CPUUtilization",
+            Dimensions=dimensions,
+            StartTime=datetime.utcnow() - timedelta(seconds=600),
+            EndTime=datetime.utcnow(),
+            Period=300,
+            Statistics=['Average']
+        )
+
+        if len(response["Datapoints"]) == 0:
+            print(f"Datapoint empty Region:"+instancerunning["region_name"]+instancerunning["instance_id"]+instancerunning["asg_name"])
+            print(response)
+            print("Make sure cloudwatch agent is installed or check the CW logs")
+
+        if len(response["Datapoints"])>0:
+            cpuusage = response["Datapoints"][0].get("Average", 0)
+        else:
+            return
+        # Extract the public ip of running instance from response.
+        try:
+            public_ip = instancerunning["public_ip"]
+        except Exception as e:
+            public_ip = instancerunning["private_ip"]
+            logger.warning("_get_metric_statistics_of_instance_savetodb : public ip not found, Using private ip for " + instance_id +str(e))
+
+        data = { "instance_id": instance_id, "public_ip": public_ip, "private_ip": instancerunning["private_ip"],
+                 "instance_name": instancerunning["instance_name"], "cpuusage": cpuusage,
+                "asgname": instancerunning["asg_name"], "region_name": instancerunning['region_name']}
+        return data
+
+    except Exception as e:
+        logger.warning("_get_metric_statistics_of_instance_savetodb: Exception: " + str(e))
+        return
+
 def main():
     hostSetVar = set()
     script_home = os.path.dirname(os.path.abspath(__file__))
@@ -99,12 +142,15 @@ def main():
                 for asgname in data['ASG_NAME']:
                     obje = AsgCPUMonitor(asgname, region_name, data["Namespace"], data["MetricName"])
                     futures.append(executor.submit(obje._get_running_instances))
-            for fut in concurrent.futures.as_completed(futures):
-                    runninginstances=fut.result()
+    # fetch completed jobs
+    for fut in concurrent.futures.as_completed(futures):
+        if fut.result() is not None:
+            runninginstances=fut.result()
 
     db_handler = DbHandler(dbfile)
     # get cpu utilization from the list of running instaces : here db_handler.close_connection() is done inside fxn
-    cpudata = obje._get_cpu_utilization(runninginstances)
+    cpudata = get_cpu_utilization(runninginstances)
+
     for d in cpudata:
         db_handler.insert_cpuusage_data(d)
         # db_handler.insert_cpuusage_data(d.get("instance_id"),d.get('instance_name'),d.get('public_ip'),d.get('private_ip'),d.get('cpu_usage'),
@@ -133,7 +179,6 @@ def main():
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
         for obz in cpudata:
-            print(obz)
             memfuture.append(executor.submit(startMemoryProcessing, obz["instance_id"],obz["region_name"],obz["asgname"],datafh["Namespace"],datafh["Metricname"]))
         for future in concurrent.futures.as_completed(memfuture):
             allmemdata.append(future.result())  # this contains mem stat of all instances

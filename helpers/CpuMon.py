@@ -61,8 +61,6 @@ class AsgCPUMonitor:
 
     def _get_running_instances(self):
         running_instances = []
-        print(self.asg_name,self.region_name)
-        print('--')
         cw_client_asg = boto3.client('autoscaling', region_name=self.region_name)
         response = cw_client_asg.describe_auto_scaling_groups(AutoScalingGroupNames=[self.asg_name])
         # return false if the asg name is not found
@@ -71,8 +69,7 @@ class AsgCPUMonitor:
         else:
             instancestmp = response['AutoScalingGroups'][0]['Instances']
             futures = []
-
-            with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+            with concurrent.futures.ThreadPoolExecutor() as executor:
                 for instance in instancestmp:
                     instance_id = instance['InstanceId']
                     # get publicip, private ip of running instance
@@ -90,7 +87,7 @@ class AsgCPUMonitor:
                              "region_name":self.region_name,"asg_name":result["asg_name"]})
                     except Exception as e:
                         self.logger.warning("_get_running_instances: Exception: "+str(e))
-            return (running_instances)
+            return (running_instances) ## This is LIST
 
     def _get_metric_statistics_of_instance_savetolist(self,instancerunning):
         try:
