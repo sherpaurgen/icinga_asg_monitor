@@ -108,9 +108,7 @@ class AsgCPUMonitor:
             )
 
             if len(response["Datapoints"]) == 0:
-                print(f"Datapoint empty Region:"+instancerunning["region_name"]+instancerunning["instance_id"]+instancerunning["asg_name"])
-                print(response)
-                print("Make sure cloudwatch agent is installed or check the CW logs")
+                self.logger.warning(f"Datapoint empty Region:"+instancerunning["region_name"]+instancerunning["instance_id"]+instancerunning["asg_name"])
 
             if len(response["Datapoints"])>0:
                 cpuusage = response["Datapoints"][0].get("Average", 0)
