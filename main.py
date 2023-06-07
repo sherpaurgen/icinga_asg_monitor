@@ -187,7 +187,7 @@ def main():
     db_handler_mem = DbHandler(dbfile)
     for md in allmemdata:
         if md["mem_used"] == 0:
-            continue
+            logger.warning(f"The {md['instance_id']} instance do not have CWAgent configured")
         db_handler_mem.insert_memusage_data(md)
     db_handler_mem.close_connection()
     end_time = time.perf_counter()
