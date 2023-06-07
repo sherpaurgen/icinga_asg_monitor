@@ -59,7 +59,10 @@ class AsgCPUMonitor:
         except Exception as e:
             self.logger.warning("_get_dns_ip Exception:" + str(e))
 
-    def _get_running_instances(self,running_instances):
+    def _get_running_instances(self):
+        running_instances = []
+        print(self.asg_name,self.region_name)
+        print('--')
         cw_client_asg = boto3.client('autoscaling', region_name=self.region_name)
         response = cw_client_asg.describe_auto_scaling_groups(AutoScalingGroupNames=[self.asg_name])
         # return false if the asg name is not found
@@ -67,7 +70,8 @@ class AsgCPUMonitor:
             self.logger.warning("Nothing found inside Group "+self.asg_name+" in " +self.region_name)
         else:
             instancestmp = response['AutoScalingGroups'][0]['Instances']
-            futures=[]
+            futures = []
+
             with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
                 for instance in instancestmp:
                     instance_id = instance['InstanceId']
@@ -75,7 +79,7 @@ class AsgCPUMonitor:
                     futures.append(executor.submit(self._get_dns_ip,instance_id))
                 for completed_task in concurrent.futures.as_completed(futures):
                     try:
-                        result=completed_task.result()
+                        result = completed_task.result()
                         if result is None:
                             continue
                         else:

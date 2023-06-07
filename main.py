@@ -97,13 +97,14 @@ def main():
             print(f"Region {region_name}......")
             with concurrent.futures.ThreadPoolExecutor() as executor:
                 for asgname in data['ASG_NAME']:
-                    obj = AsgCPUMonitor(asgname, region_name, data["Namespace"], data["MetricName"])
-                    db_handler = DbHandler(dbfile)
-                    futures.append(executor.submit(obj._get_running_instances,runninginstances))
-                for fut in concurrent.futures.as_completed(futures):
-                    pass
+                    obje = AsgCPUMonitor(asgname, region_name, data["Namespace"], data["MetricName"])
+                    futures.append(executor.submit(obje._get_running_instances))
+            for fut in concurrent.futures.as_completed(futures):
+                    runninginstances=fut.result()
+
+    db_handler = DbHandler(dbfile)
     # get cpu utilization from the list of running instaces : here db_handler.close_connection() is done inside fxn
-    cpudata=obj._get_cpu_utilization(runninginstances)
+    cpudata = obje._get_cpu_utilization(runninginstances)
     for d in cpudata:
         db_handler.insert_cpuusage_data(d)
         # db_handler.insert_cpuusage_data(d.get("instance_id"),d.get('instance_name'),d.get('public_ip'),d.get('private_ip'),d.get('cpu_usage'),

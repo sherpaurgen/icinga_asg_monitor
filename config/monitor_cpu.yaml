@@ -3,6 +3,7 @@ ASG_NAME:
   - 'Demoasg'
 region_name:
   - 'us-west-2'
+  - 'us-east-1'
 Namespace: 'AWS/EC2'
 MetricName: 'CPUUtilization'
 
