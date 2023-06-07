@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 class AsgMemoryMonitor:
     def __init__(self,):
         self.logger = self._create_logger()
+
     # constructor not needed
 
 
@@ -50,15 +51,19 @@ class AsgMemoryMonitor:
                 StartTime=start_time,
                 EndTime=end_time,
             )
-            data_points = response['MetricDataResults'][0]['Values']
+            if len(response['MetricDataResults'][0]['Values'])>0:
+                data_points = response['MetricDataResults'][0]['Values']
+            else:
+                data_points = [0]
 
             if data_points:
                 memory_usage_percent = data_points[-1]
             else:
-                memory_usage_percent = 1
+                memory_usage_percent = 0
             # print(f"{memory_usage_percent}% used in {instance_id}")
-            return {'instance_id': instance_id,
-                    'region_name': region_name, 'asg_name': asg_name,'mem_used':memory_usage_percent}
+            finalval={'instance_id': instance_id,'region_name': region_name, 'asg_name': asg_name,'mem_used':memory_usage_percent}
+            print(finalval)
+            return finalval
         except Exception as e:
             self.logger.warning("_get_memory_usage Exception: "+str(e))
 def main():

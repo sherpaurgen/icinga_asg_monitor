@@ -102,9 +102,6 @@ def main():
                     futures.append(executor.submit(obj._get_running_instances,runninginstances))
                 for fut in concurrent.futures.as_completed(futures):
                     pass
-    print("RUNNING ......")
-    print(runninginstances)
-    print()
     # get cpu utilization from the list of running instaces : here db_handler.close_connection() is done inside fxn
     cpudata=obj._get_cpu_utilization(runninginstances)
     for d in cpudata:
@@ -135,20 +132,21 @@ def main():
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
         for obz in cpudata:
+            print(obz)
             memfuture.append(executor.submit(startMemoryProcessing, obz["instance_id"],obz["region_name"],obz["asgname"],datafh["Namespace"],datafh["Metricname"]))
-            for future in concurrent.futures.as_completed(memfuture):
-                allmemdata.append(future.result())  # this contains mem stat of all instances
+        for future in concurrent.futures.as_completed(memfuture):
+            allmemdata.append(future.result())  # this contains mem stat of all instances
 
     #allmemdata--> [{'instance_id': 'i-03450ec3cfc011cda', 'region_name': 'us-west-2', 'asg_name': 'MoodleCloudASG', 'mem_used': 24.977146786393238}]
-    print("\n\n")
-    print(allmemdata)
     db_handler_mem = DbHandler(dbfile)
     for md in allmemdata:
+        if md["mem_used"] == 0:
+            continue
         db_handler_mem.insert_memusage_data(md)
     db_handler_mem.close_connection()
     end_time = time.perf_counter()
     execution_time = end_time - start_time
-    print(f"Total Execution time: {execution_time:.6f} seconds")
+    print(f"Total Elapsed time: {execution_time:.6f} seconds")
 if __name__ == "__main__":
     main()
 
