@@ -1,11 +1,7 @@
 #!/monitoringScripts/VENVT/bin/python
-import os
 import boto3
 import logging
-from datetime import datetime, timedelta
 import concurrent.futures
-from helpers.dbHandler import DbHandler
-
 
 class AsgCPUMonitor:
     def __init__(self, asg_name, region_name, namespace, metric_name):
@@ -14,6 +10,7 @@ class AsgCPUMonitor:
         self.namespace = namespace
         self.metric_name = metric_name
         self.logger = self._create_logger()
+        self.count = 0
 
     def _create_logger(self):
         logger = logging.getLogger(__name__)
@@ -27,7 +24,7 @@ class AsgCPUMonitor:
         logger.addHandler(stream_handler)
         return logger
 
-    def _get_dns_ip(self,instance_id):
+    def _get_dns_ip(self, instance_id):
         cw_cli_ec2 = boto3.client('ec2', region_name=self.region_name)
         response = cw_cli_ec2.describe_instances(InstanceIds=[instance_id])
         instance_name = ''
@@ -62,10 +59,11 @@ class AsgCPUMonitor:
     def _get_running_instances(self):
         running_instances = []
         cw_client_asg = boto3.client('autoscaling', region_name=self.region_name)
+        self.logger.warning("api request sent")
         response = cw_client_asg.describe_auto_scaling_groups(AutoScalingGroupNames=[self.asg_name])
-        # return false if the asg name is not found
+        # return false if the asg name is not found.
         if not response["AutoScalingGroups"]:
-            self.logger.warning("Nothing found inside Group "+self.asg_name+" in " +self.region_name)
+            self.logger.warning("Empty " + self.asg_name + " in " + self.region_name)
         else:
             instancestmp = response['AutoScalingGroups'][0]['Instances']
             futures = []
@@ -89,56 +87,6 @@ class AsgCPUMonitor:
                         self.logger.warning("_get_running_instances: Exception: "+str(e))
             return (running_instances) ## This is LIST
 
-    def _get_metric_statistics_of_instance_savetolist(self,instancerunning):
-        try:
-            script_home = os.path.dirname(os.path.abspath(__file__))
-            dbfile = script_home + "/icinga.db"
-            dbcon = DbHandler(dbfile)
-            cw_cli = boto3.client('cloudwatch', region_name=instancerunning["region_name"])
-            instance_id = instancerunning['instance_id']
-            dimensions = [{'Name': 'InstanceId', 'Value': instance_id }]
-            response = cw_cli.get_metric_statistics(
-                Namespace="AWS/EC2",
-                MetricName="CPUUtilization",
-                Dimensions=dimensions,
-                StartTime=datetime.utcnow() - timedelta(seconds=600),
-                EndTime=datetime.utcnow(),
-                Period=300,
-                Statistics=['Average']
-            )
-
-            if len(response["Datapoints"]) == 0:
-                self.logger.warning(f"Datapoint empty Region:"+instancerunning["region_name"]+instancerunning["instance_id"]+instancerunning["asg_name"])
-
-            if len(response["Datapoints"])>0:
-                cpuusage = response["Datapoints"][0].get("Average", 0)
-            else:
-                return
-            # Extract the public ip of running instance from response.
-            try:
-                public_ip = instancerunning["public_ip"]
-            except Exception as e:
-                public_ip = instancerunning["private_ip"]
-                self.logger.warning("_get_metric_statistics_of_instance_savetodb : public ip not found, Using private ip for " + instance_id +str(e))
-
-            data = { "instance_id": instance_id, "public_ip": public_ip, "private_ip": instancerunning["private_ip"],
-                     "instance_name": instancerunning["instance_name"], "cpuusage": cpuusage,
-                    "asgname": instancerunning["asg_name"], "region_name": self.region_name }
-            return data
-
-        except Exception as e:
-            self.logger.warning("_get_metric_statistics_of_instance_savetodb: Exception: " + str(e))
-            return
-
-    def _get_cpu_utilization(self, running_instances):
-        ft = []
-        allcpudata=[]
-        with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
-            for instance in running_instances:
-                ft.append(executor.submit(self._get_metric_statistics_of_instance_savetolist,instance))
-            for future in concurrent.futures.as_completed(ft):
-                allcpudata.append(future.result())
-        return allcpudata
 
 def main():
     print("Use main.py")

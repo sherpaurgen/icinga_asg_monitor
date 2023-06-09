@@ -1,9 +1,12 @@
 ASG_NAME:
-  - 'MoodleCloudASG'
   - 'Demoasg'
+  - 'MoodleCloudASG'
+  - 'northernAsg'
+  - 'SoutherAsg'
 region_name:
   - 'us-west-2'
   - 'us-east-1'
+  - 'us-east-2'
 Namespace: 'AWS/EC2'
 MetricName: 'CPUUtilization'
 

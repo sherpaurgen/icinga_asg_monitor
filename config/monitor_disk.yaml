@@ -1,10 +1,10 @@
-region_name:
-  - 'us-west-2'
 Namespace: 'CWAgent'
-MetricName: 'disk_used_percent'
+Metricname: 'disk_used_percent'
 ASG_NAME:
-  - 'MoodleCloudASG'
+  - 'northernAsg'
+  - 'Demoasg'
+
 mountpath:
   - '/'
-  - '/mydata'
+  - '/datadrive'
 

@@ -1,4 +1,4 @@
-from helpers.DiskMon import AsgDiskMonitor
+from helpers.DiskMon import get_disk_used_percent,get_metriclist_for_instance
 from helpers.MemoryMonitor import AsgMemoryMonitor
 from helpers.CpuMon import AsgCPUMonitor
 from jinja2 import Template
@@ -16,12 +16,11 @@ def startMemoryProcessing(instance_id,region_name,asg_name, Namespace,
     memstatlist = vmobj._get_memory_usage(instance_id,region_name,asg_name,Namespace,MetricName,)
     return(memstatlist)
 
-def get_ec2_ASG_metriclist(ASG_NAME, region_name, mountpath, Namespace,
-                    MetricName, hosttemplatepath,
-                    icingahostfilepath, db_handler, hostSetVar):
-    adm1 = AsgDiskMonitor(asg_name=ASG_NAME, region_name=region_name, mountpath=mountpath, namespace=Namespace,
-                          metric_name=MetricName, hosttemplatepath=hosttemplatepath,icingahostfilepath=icingahostfilepath)
-    #adm1._get_disk_used_percent(ec2_ASG_metriclist, db_handler)
+def startStorageProcessing(instance_id,region_name,asg_name, Namespace,
+                          MetricName):
+
+    storagestatlist = get_disk_used_percent(instance_id,region_name,asg_name,Namespace,MetricName,)
+    return(storagestatlist)
 
 
 def truncate_file(icingahostfilepath):
@@ -110,7 +109,7 @@ def get_metric_statistics_of_instance_savetolist(instancerunning):
             public_ip = instancerunning["public_ip"]
         except Exception as e:
             public_ip = instancerunning["private_ip"]
-            logger.warning("_get_metric_statistics_of_instance_savetodb : public ip not found, Using private ip for " + instance_id +str(e))
+            logger.warning("_get_metric_statistics_of_instance_savetodb : public IP not found, Using private ip for " + instance_id +str(e))
 
         data = { "instance_id": instance_id, "public_ip": public_ip, "private_ip": instancerunning["private_ip"],
                  "instance_name": instancerunning["instance_name"], "cpuusage": cpuusage,
@@ -132,25 +131,27 @@ def main():
     # Start fetching cpu info
     icingaconfigpath = script_home + "/config/icinga_config.yaml"
     cpumonconfig = script_home + "/config/monitor_cpu.yaml"
-    runninginstances=[]
+    runninginstances = []
+    tmphold = []
     with open(cpumonconfig, "r") as f:
         data = yaml.safe_load(f)
         futures = []
         for region_name in data['region_name']:
             print(f"Region {region_name}......")
-            with concurrent.futures.ThreadPoolExecutor() as executor:
-                for asgname in data['ASG_NAME']:
-                    obje = AsgCPUMonitor(asgname, region_name, data["Namespace"], data["MetricName"])
-                    futures.append(executor.submit(obje._get_running_instances))
-    # fetch completed jobs
-    for fut in concurrent.futures.as_completed(futures):
-        if fut.result() is not None:
-            runninginstances=fut.result()
+            for asgname in data['ASG_NAME']:
+                obje = AsgCPUMonitor(asgname, region_name, data["Namespace"], data["MetricName"])
+                tmphold.append(obje._get_running_instances())
 
+    print('------------------tmphold------------')
+    for instancelist in tmphold:
+        if instancelist is not None:
+            for instance in instancelist:
+                runninginstances.append(instance)
+    del tmphold
+    print(runninginstances)
     db_handler = DbHandler(dbfile)
     # get cpu utilization from the list of running instaces : here db_handler.close_connection() is done inside fxn
     cpudata = get_cpu_utilization(runninginstances)
-
     for d in cpudata:
         db_handler.insert_cpuusage_data(d)
         # db_handler.insert_cpuusage_data(d.get("instance_id"),d.get('instance_name'),d.get('public_ip'),d.get('private_ip'),d.get('cpu_usage'),
@@ -169,7 +170,7 @@ def main():
     generate_host_file(icingahostfilepath, hosttemplatepath)
     # end
 
-    #Memory stat fetch starts here
+    #                       Memory stat fetch starts here
     memory_monitor_config = script_home + "/config/monitor_memory.yaml"
     with open(memory_monitor_config, "r") as f:
         datafh = yaml.safe_load(f)
@@ -190,9 +191,34 @@ def main():
             logger.warning(f"The {md['instance_id']} instance do not have CWAgent configured")
         db_handler_mem.insert_memusage_data(md)
     db_handler_mem.close_connection()
+
+    disk_monitor_config = script_home + "/config/monitor_disk.yaml"
+    with open(disk_monitor_config, "r") as fh:
+        datafh = yaml.safe_load(fh)
+
+    sto_metric_name=datafh['Metricname']
+    sto_asg_name=datafh['ASG_NAME']
+    sto_namespace=datafh['Namespace']
+    print("sto_metric_name,sto_asg_name,sto_namespace-----------------")
+    print(sto_metric_name,sto_asg_name,sto_namespace)
+    mount_point_list=[]
+    for mnt in datafh['mountpath']:
+        mount_point_list.append(mnt)
+    asg_list=[]
+    for asg in sto_asg_name:
+        asg_list.append(asg)
+
+    all_instance_metric=[]
+    for item in cpudata:
+        all_instance_metric.append(get_metriclist_for_instance(item['instance_id'],item['region_name'],sto_namespace,sto_metric_name,asg_list, mount_point_list))
+
+    print("-----all_instance_metric-----")
+    print()
+    print(all_instance_metric)
+
     end_time = time.perf_counter()
     execution_time = end_time - start_time
-    print(f"Total Elapsed time: {execution_time:.6f} seconds")
+    print(f"Total Elapsed time: {execution_time:.6f} Seconds")
 if __name__ == "__main__":
     main()
 
