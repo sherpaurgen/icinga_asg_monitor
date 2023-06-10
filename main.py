@@ -45,13 +45,12 @@ def generate_host_file(icingahostfilepath, hosttemplatepath):
 
     # # icingahostfilepath,hosttemplatepath, instance_name, pub_ip, instance_id,asg_name,region_name
 
-def reloadIcinga(self):
+def reloadIcinga():
     command1 = "/usr/sbin/icinga2 daemon -C > /dev/null 2>&1"
-    # command1 = "echo"
     try:
         subprocess.run(command1, shell=True, check=True)
     except subprocess.CalledProcessError as e:
-        print(f"reloadIcinga: Command '{command1}' failed with exit code {e.returncode}")
+        logger.warning(f"reloadIcinga: Command '{command1}' failed with exit code {e.returncode}")
     else:
         # Run the second command if the first command succeeded
         command2 = "sudo systemctl reload icinga2"
@@ -59,14 +58,9 @@ def reloadIcinga(self):
         try:
             subprocess.run(command2, shell=True, check=True)
         except subprocess.CalledProcessError as e:
-            print(f"reloadIcinga: Command '{command2}' failed with exit code {e.returncode}")
+            logger.warning(f"reloadIcinga: Command '{command2}' failed with exit code {e.returncode}")
         else:
-            print("Icinga2 Reloaded Successfully")
-
-def ListAsgInRegion(region_name):
-    cw_client_asg = boto3.client('autoscaling', region_name=region_name)
-    response = cw_client_asg.describe_auto_scaling_groups()
-    print(response)
+            logger.warning("Icinga2 Reloaded Successfully")
 
 def main():
     hostSetVar = set()

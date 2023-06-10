@@ -9,8 +9,6 @@ class AsgMemoryMonitor:
         self.logger = self._create_logger()
 
     # constructor not needed
-
-
     def _create_logger(self):
         logger = logging.getLogger(__name__)
         logger.setLevel(logging.INFO)
