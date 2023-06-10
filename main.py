@@ -161,8 +161,10 @@ def main():
     all_instance_metric=[]
     for item in cpudata:
         all_instance_metric.append(get_metriclist_for_instance(item['instance_id'],item['region_name'],sto_namespace,sto_metric_name,item['asg_name'], mount_point_list))
-                                                                #instance_id,region_name,namespace,metric_name,asg_name,mount_point_list
-    disk_data=[]
+
+    disk_data=[] #contains list obj of instances mountpoint data, such obj will be kept individually in fin_disk_data
+    #[[{'instance_id': 'i-0c10cfcc8a0bec161', 'region_name': 'us-east-1', 'asg_name': 'northernAsg', 'disk_used': 34.8537171086833, 'mount_point': '/'}, {'instance_id': 'i-0c10cfcc8a0bec161', 'region_name': 'us-east-1', 'asg_name': 'northernAsg', 'disk_used': 20.11090761090761, 'mount_point': '/datadrive'}], [{'instance_id': 'i-04678cd0a99c43075', 'region_name': 'us-west-2', 'asg_name': 'Demoasg', 'disk_used': 32.71905589164275, 'mount_point': '/'}], False]
+
     with concurrent.futures.ThreadPoolExecutor() as executor:
         for item in all_instance_metric:
             disk_data.append(get_disk_used_percent(item['instance_id'],item['region_name'],item['asg_name'],item['metric_name'],item['namespace'],item['DimensionsData']))
@@ -178,7 +180,7 @@ def main():
 
     print(f"\n\n---disk_data---{fin_disk_data}")
 
-    print(f"\n\n---all_instance_metric---{all_instance_metric}")
+
 
 
     end_time = time.perf_counter()
