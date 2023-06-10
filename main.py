@@ -180,8 +180,14 @@ def main():
                 fin_disk_data.append(instancedata)
 
     print(f"\n\n---disk_data---{fin_disk_data}")
-
-
+    db_handler = DbHandler(dbfile)
+    # fin_disk_data > [{'instance_id': 'i-04678cd0a99c43075', 'region_name': 'us-west-2', 'asg_name': 'Demoasg', 'disk_used': 32.71905589164275, 'mount_point': '/'}, {'instance_id': 'i-0c10cfcc8a0bec161', 'region_name': 'us-east-1', 'asg_name': 'northernAsg', 'disk_used': 34.8537171086833, 'mount_point': '/'}, {'instance_id': 'i-0c10cfcc8a0bec161', 'region_name': 'us-east-1',
+    # 'asg_name': 'northernAsg', 'disk_used': 20.11090761090761, 'mount_point': '/datadrive'}]
+    for d in fin_disk_data:
+        db_handler.insert_cpuusage_data(d)
+        db_handler.close_connection()
+    #(data["instance_id"], data["DiskUsage"], data["MountPoint"],data["asg_name"],data["region_name"]))
+    db_handler.close_connection()
 
 
     end_time = time.perf_counter()
