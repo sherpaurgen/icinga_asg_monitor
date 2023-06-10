@@ -2,8 +2,8 @@
 import boto3
 import concurrent.futures
 from datetime import datetime, timedelta
-from helpers.MainLogger import setup_logger
 import logging
+from helpers.MainLogger import setup_logger
 logger = setup_logger()
 
 def get_cpu_utilization(running_instances):

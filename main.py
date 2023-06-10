@@ -1,6 +1,6 @@
 from helpers.DiskMon import get_disk_used_percent,get_metriclist_for_instance
 from helpers.MemoryMonitor import AsgMemoryMonitor
-from helpers.CpuMon import AsgCPUMonitor,get_cpu_utilization,get_metric_statistics_of_instance_savetolist
+from helpers.CpuMon import AsgCPUMonitor,get_cpu_utilization
 from jinja2 import Template
 import os,yaml,subprocess,time,concurrent,boto3,sqlite3
 from helpers.dbHandler import DbHandler
@@ -68,10 +68,6 @@ def ListAsgInRegion(region_name):
     response = cw_client_asg.describe_auto_scaling_groups()
     print(response)
 
-
-
-
-
 def main():
     hostSetVar = set()
     script_home = os.path.dirname(os.path.abspath(__file__))
@@ -134,7 +130,8 @@ def main():
         for future in concurrent.futures.as_completed(memfuture):
             allmemdata.append(future.result())  # this contains mem stat of all instances
 
-    #allmemdata--> [{'instance_id': 'i-03450ec3cfc011cda', 'region_name': 'us-west-2', 'asg_name': 'MoodleCloudASG', 'mem_used': 24.977146786393238}]
+    # allmemdata--> [{'instance_id': 'i-03450ec3cfc011cda', 'region_name': 'us-west-2', 'asg_name': 'MoodleCloudASG',
+    # 'mem_used': 24.977146786393238}]
     db_handler_mem = DbHandler(dbfile)
     for md in allmemdata:
         if md["mem_used"] == 0:
@@ -164,13 +161,17 @@ def main():
 
     disk_data=[] #contains list obj of instances mountpoint data, such obj will be kept individually in fin_disk_data
     #[[{'instance_id': 'i-0c10cfcc8a0bec161', 'region_name': 'us-east-1', 'asg_name': 'northernAsg', 'disk_used': 34.8537171086833, 'mount_point': '/'}, {'instance_id': 'i-0c10cfcc8a0bec161', 'region_name': 'us-east-1', 'asg_name': 'northernAsg', 'disk_used': 20.11090761090761, 'mount_point': '/datadrive'}], [{'instance_id': 'i-04678cd0a99c43075', 'region_name': 'us-west-2', 'asg_name': 'Demoasg', 'disk_used': 32.71905589164275, 'mount_point': '/'}], False]
-
-    with concurrent.futures.ThreadPoolExecutor() as executor:
+    dfuture=[] # hold the thread exec op
+    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
         for item in all_instance_metric:
-            disk_data.append(get_disk_used_percent(item['instance_id'],item['region_name'],item['asg_name'],item['metric_name'],item['namespace'],item['DimensionsData']))
+            dfuture.append(executor.submit(get_disk_used_percent,item['instance_id'],item['region_name'],item['asg_name'],item['metric_name'],item['namespace'],item['DimensionsData']))
+            #disk_data.append(get_disk_used_percent(item['instance_id'],item['region_name'],item['asg_name'],item['metric_name'],item['namespace'],item['DimensionsData']))
+        for future in concurrent.futures.as_completed(dfuture):
+            disk_data.append(future.result())
+
 
     fin_disk_data=[]
-    print("\n\n---disk_data")
+
     for lst in disk_data:
         if lst is False:
             continue

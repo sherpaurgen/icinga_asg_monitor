@@ -1,12 +1,15 @@
 #!/monitoringScripts/VENVT/bin/python
 import boto3
-import logging
 from datetime import datetime, timedelta
+import threading
+from helpers.MainLogger import setup_logger
+logger = setup_logger()
 
 def get_disk_used_percent(instance_id,region_name,asg_name,metric_name,namespace,DimensionsData):
     result=[]
+    logger.warning(f"{threading.get_ident()} : Thread execution started")
     if len(DimensionsData) == 0: # instance which dont have CWAgent installed will have this False
-        logging.warning(f"instance_id : missing CWAgent")
+        logger.warning(f"instance_id {instance_id}, region: {region_name} : missing CWAgent")
         return False
     else:
         try:
@@ -43,12 +46,13 @@ def get_disk_used_percent(instance_id,region_name,asg_name,metric_name,namespace
                     disk_usage_percent = data_points[-1]
                 else:
                     disk_usage_percent = -1
-
                 result.append({'instance_id': instance_id, 'region_name': region_name, 'asg_name': asg_name,
                             'disk_used': disk_usage_percent,'mount_point': mntpoint})
         except Exception as e:
-           logging.warning("get_disk_used_percent Exception: " + str(e))
+           logger.warning("get_disk_used_percent Exception: " + str(e))
+    logger.warning(f"{threading.get_ident()} :Thread Stopped")
     return result
+
 #(item['instance_id'],item['region_name'],sto_namespace,sto_metric_name,asg_list, mount_point_list)
 def get_metriclist_for_instance(instance_id,region_name,namespace,metric_name,asg_name,mount_point_list):
     instancemetric = []
@@ -71,7 +75,7 @@ def get_metriclist_for_instance(instance_id,region_name,namespace,metric_name,as
                                 metric["Dimensions"]:
                             instancemetric.append(metric)
     else:
-        logging.warning("empty response")
+        logger.warning("empty response")
     #item['instance_id'],item['region_name'],item['asg_name'],sto_metric_name,sto_namespace,mount_point_list)
     return {"instance_id":instance_id,"region_name":region_name,"asg_name":asg_name,
             "metric_name": metric_name,"namespace":namespace,"DimensionsData":instancemetric }
