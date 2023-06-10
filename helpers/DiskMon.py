@@ -3,23 +3,10 @@ import boto3
 import logging
 from datetime import datetime, timedelta
 
-
-
-def create_logger(self):
-    logger = logging.getLogger(__name__)
-    logger.setLevel(logging.INFO)
-    formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s", '%Y-%m-%d %H:%M:%S')
-    file_handler = logging.FileHandler("/tmp/custom_ec2_info_fetcher.log")
-    file_handler.setFormatter(formatter)
-    stream_handler = logging.StreamHandler()
-    stream_handler.setFormatter(formatter)
-    logger.addHandler(file_handler)
-    logger.addHandler(stream_handler)
-    return logger
-
 def get_disk_used_percent(instance_id,region_name,asg_name,metric_name,namespace,DimensionsData):
     result=[]
-    if len(DimensionsData) == 0:
+    if len(DimensionsData) == 0: # instance which dont have CWAgent installed will have this False
+        logging.warning(f"instance_id : missing CWAgent")
         return False
     else:
         try:

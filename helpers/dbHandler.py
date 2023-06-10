@@ -118,7 +118,6 @@ class DbHandler:
             self.dblogger.warning("DB Error, insert_cpu_usage_data: " + str(e))
 
 
-
     def close_connection(self):
         try:
             self.conn.close()
