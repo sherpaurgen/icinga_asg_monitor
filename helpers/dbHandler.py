@@ -95,13 +95,14 @@ class DbHandler:
         except Exception as e:
             self.dblogger.warning("DB Error, Truncate tables: " + str(e))
 
-
-
     def insert_diskusage_data(self, data):
+        conn = sqlite3.connect(self.db_file_path)
+        cursor = conn.cursor()
         try:
-            self.cursor.execute("INSERT INTO disk_usage (instance_id, DiskUsage, MountPoint,asg_name,region_name) VALUES (?, ?, ?,?,?)",
+            cursor.execute("INSERT INTO disk_usage (instance_id, DiskUsage, MountPoint,asg_name,region_name) VALUES (?, ?, ?,?,?)",
                             (data["instance_id"], data["disk_used"], data["mount_point"],data["asg_name"],data["region_name"]))
-            self.conn.commit()
+            conn.commit()
+            conn.close()
         except Exception as e:
             self.dblogger.warning("DB Error, insert_diskusage_data: " + str(e))
 
@@ -113,9 +114,8 @@ class DbHandler:
             cursor.execute("INSERT INTO cpu_usage (instance_id,instance_name,public_ip,private_ip,cpu_usage,asg_name,region_name) VALUES (?, ?, ?, ?,? ,?,?)",
                             (data["instance_id"],data["instance_name"],data["public_ip"],data["private_ip"], data["cpuusage"], data["asg_name"],data["region_name"]))
             conn.commit()
-            conn.close()
         except Exception as e:
-            self.dblogger.warning("DB Error, insert_cpu_usage_data: " + str(e))
+            self.dblogger.warning("DB Error, insert_cpuusage_data: " + str(e))
 
 
     def close_connection(self):
