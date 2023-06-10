@@ -111,7 +111,7 @@ class DbHandler:
         self.create_cpuusage_table()
         try:
             cursor.execute("INSERT INTO cpu_usage (instance_id,instance_name,public_ip,private_ip,cpu_usage,asg_name,region_name) VALUES (?, ?, ?, ?,? ,?,?)",
-                            (data["instance_id"],data["instance_name"],data["public_ip"],data["private_ip"], data["cpuusage"], data["asgname"],data["region_name"]))
+                            (data["instance_id"],data["instance_name"],data["public_ip"],data["private_ip"], data["cpuusage"], data["asg_name"],data["region_name"]))
             conn.commit()
             conn.close()
         except Exception as e:

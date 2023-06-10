@@ -3,7 +3,6 @@ Metricname: 'disk_used_percent'
 ASG_NAME:
   - 'northernAsg'
   - 'Demoasg'
-
 mountpath:
   - '/'
   - '/datadrive'

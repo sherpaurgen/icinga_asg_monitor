@@ -94,7 +94,6 @@ def get_metric_statistics_of_instance_savetolist(instancerunning):
             Period=300,
             Statistics=['Average']
         )
-
         if len(response["Datapoints"]) == 0:
             print(f"Datapoint empty Region:"+instancerunning["region_name"]+instancerunning["instance_id"]+instancerunning["asg_name"])
             print(response)
@@ -113,7 +112,7 @@ def get_metric_statistics_of_instance_savetolist(instancerunning):
 
         data = { "instance_id": instance_id, "public_ip": public_ip, "private_ip": instancerunning["private_ip"],
                  "instance_name": instancerunning["instance_name"], "cpuusage": cpuusage,
-                "asgname": instancerunning["asg_name"], "region_name": instancerunning['region_name']}
+                "asg_name": instancerunning["asg_name"], "region_name": instancerunning['region_name']}
         return data
 
     except Exception as e:
@@ -142,13 +141,12 @@ def main():
                 obje = AsgCPUMonitor(asgname, region_name, data["Namespace"], data["MetricName"])
                 tmphold.append(obje._get_running_instances())
 
-    print('------------------tmphold------------')
     for instancelist in tmphold:
         if instancelist is not None:
             for instance in instancelist:
                 runninginstances.append(instance)
     del tmphold
-    print(runninginstances)
+
     db_handler = DbHandler(dbfile)
     # get cpu utilization from the list of running instaces : here db_handler.close_connection() is done inside fxn
     cpudata = get_cpu_utilization(runninginstances)
@@ -157,20 +155,19 @@ def main():
         # db_handler.insert_cpuusage_data(d.get("instance_id"),d.get('instance_name'),d.get('public_ip'),d.get('private_ip'),d.get('cpu_usage'),
         #                                 d.get('asg_name'),d.get('region_name'))
         db_handler.close_connection()
-    # cpu data sample [{'instance_id': 'i-03450ec3cfc011cda', 'public_ip': '54.244.136.168', 'private_ip': '172.31.40.150',
-    #   'instance_name': 'MoodleCloudASG_i-03450ec3cfc011cda', 'cpuusage': 0.5607262471355686,
-    #   'asgname': 'MoodleCloudASG', 'region_name': 'us-west-2'},]
 
+    # -------------------------------------------------------------------------------------------------------------------------------------#
     with open(icingaconfigpath, "r") as f:
         icingadata = yaml.safe_load(f)
         icingahostfilepath = script_home + "/config/" + icingadata["icingahostfilepath"]
         hosttemplatepath = script_home + "/config/" + icingadata["hosttemplatepath"]
         truncate_file(icingahostfilepath)
-    # Generating the icinga host file happens here
+    # Generation of the icinga host file happens here
     generate_host_file(icingahostfilepath, hosttemplatepath)
     # end
+    # -------------------------------------------------------------------------------------------------------------------------------------#
 
-    #                       Memory stat fetch starts here
+    # Memory stat fetch starts here
     memory_monitor_config = script_home + "/config/monitor_memory.yaml"
     with open(memory_monitor_config, "r") as f:
         datafh = yaml.safe_load(f)
@@ -180,7 +177,7 @@ def main():
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
         for obz in cpudata:
-            memfuture.append(executor.submit(startMemoryProcessing, obz["instance_id"],obz["region_name"],obz["asgname"],datafh["Namespace"],datafh["Metricname"]))
+            memfuture.append(executor.submit(startMemoryProcessing, obz["instance_id"],obz["region_name"],obz["asg_name"],datafh["Namespace"],datafh["Metricname"]))
         for future in concurrent.futures.as_completed(memfuture):
             allmemdata.append(future.result())  # this contains mem stat of all instances
 
@@ -191,7 +188,7 @@ def main():
             logger.warning(f"The {md['instance_id']} instance do not have CWAgent configured")
         db_handler_mem.insert_memusage_data(md)
     db_handler_mem.close_connection()
-
+    # --------------------------------------Disk Monitoring-----------------------------------------------------------------------------------------------#
     disk_monitor_config = script_home + "/config/monitor_disk.yaml"
     with open(disk_monitor_config, "r") as fh:
         datafh = yaml.safe_load(fh)
@@ -199,26 +196,40 @@ def main():
     sto_metric_name=datafh['Metricname']
     sto_asg_name=datafh['ASG_NAME']
     sto_namespace=datafh['Namespace']
-    print("sto_metric_name,sto_asg_name,sto_namespace-----------------")
-    print(sto_metric_name,sto_asg_name,sto_namespace)
-    mount_point_list=[]
+    mount_point_list = []
     for mnt in datafh['mountpath']:
         mount_point_list.append(mnt)
-    asg_list=[]
+    asg_list= []
     for asg in sto_asg_name:
         asg_list.append(asg)
-
+    # cpu data sample [ {'instance_id': 'i-03450ec3cfc011cda', 'public_ip': '54.244.136.168', 'private_ip': '172.31.40.150',
+    #   'instance_name': 'MoodleCloudASG_i-03450ec3cfc011cda', 'cpuusage': 0.5607262471355686,
+    #   'asgname': 'MoodleCloudASG', 'region_name': 'us-west-2'},  ]
     all_instance_metric=[]
     for item in cpudata:
-        all_instance_metric.append(get_metriclist_for_instance(item['instance_id'],item['region_name'],sto_namespace,sto_metric_name,asg_list, mount_point_list))
+        all_instance_metric.append(get_metriclist_for_instance(item['instance_id'],item['region_name'],sto_namespace,sto_metric_name,item['asg_name'], mount_point_list))
+                                                                #instance_id,region_name,namespace,metric_name,asg_name,mount_point_list
+    disk_data=[]
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        for item in all_instance_metric:
+            disk_data.append(get_disk_used_percent(item['instance_id'],item['region_name'],item['asg_name'],item['metric_name'],item['namespace'],item['DimensionsData']))
 
-    print("-----all_instance_metric-----")
-    print()
-    print(all_instance_metric)
+    fin_disk_data=[]
+    print("\n\n---disk_data")
+    for lst in disk_data:
+        if lst is False:
+            continue
+        else:
+            for instancedata in lst:
+                fin_disk_data.append(instancedata)
+
+    print(f"\n\n---disk_data---{fin_disk_data}")
+
 
     end_time = time.perf_counter()
     execution_time = end_time - start_time
     print(f"Total Elapsed time: {execution_time:.6f} Seconds")
+
 if __name__ == "__main__":
     main()
 

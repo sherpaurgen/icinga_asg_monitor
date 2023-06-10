@@ -17,52 +17,53 @@ def create_logger(self):
     logger.addHandler(stream_handler)
     return logger
 
+def get_disk_used_percent(instance_id,region_name,asg_name,metric_name,namespace,DimensionsData):
+    result=[]
+    if len(DimensionsData) == 0:
+        return False
+    else:
+        try:
+            instance_id = instance_id
+            region_name = region_name
+            asg_name = asg_name
+            for instMetricData in DimensionsData:
+                dim = instMetricData['Dimensions']
+                mntpoint = instMetricData['Dimensions'][0]['Value']  # extract the mountpoint
+                # print(f"mountpoint is { mntpoint} \n {dim} \n---\n")
+                cloudwatch_client = boto3.client('cloudwatch', region_name=region_name)
+                end_time = datetime.utcnow()
+                start_time = end_time - timedelta(minutes=5)
+                response = cloudwatch_client.get_metric_data(
+                    MetricDataQueries=[
+                        {
+                            'Id': 'disk_utilization',
+                            'MetricStat': {
+                                'Metric': {
+                                    'Namespace': namespace,
+                                    'MetricName': metric_name,
+                                    'Dimensions': dim
+                                },
+                                'Period': 60,
+                                'Stat': 'Average',
+                            }
+                        },
+                    ],
+                    StartTime=start_time,
+                    EndTime=end_time,
+                )
+                if len(response['MetricDataResults'][0]['Values']) > 0:
+                    data_points = response['MetricDataResults'][0]['Values']
+                    disk_usage_percent = data_points[-1]
+                else:
+                    disk_usage_percent = -1
 
-
-def get_disk_used_percent(instance_id,region_name,asg_name,Namespace,MetricName,mount_point):
-    try:
-        start_time = datetime.utcnow() - timedelta(minutes=5)
-        end_time = datetime.utcnow()
-        period = 300
-        cloudwatch = boto3.client('cloudwatch', region_name=region_name)
-
-        Dimensions = [{'Name': 'InstanceId', 'Value': instance_id}]
-        res = cloudwatch.get_metric_statistics(
-            Namespace=Namespace,
-            MetricName=MetricName,
-            Dimensions=Dimensions,
-            StartTime=start_time,
-            EndTime=end_time,
-            Period=period,
-            Statistics=['Average']
-        )
-        instance_id = instance_id
-        mount_point = mount_point
-        print("the response")
-        print(res)
-        print()
-        # getting id and mount point
-        for item in Dimensions:
-            if item.get('Name') == 'InstanceId':
-                instance_id = item.get('Value')
-            if item.get('Name') == 'path':
-                mount_point = item.get('Value')
-        disk_usage = 0
-        # getting disk usage from the response obj
-        for point in res['Datapoints']:
-            if 'Average' in point:
-                disk_usage = point['Average']
-                break
-        data = {"instance_id": instance_id, "DiskUsage": disk_usage, "MountPoint": mount_point,
-                "asg_name": asg_name, "region_name": region_name}
-        print(data)
-
-
-    except Exception as e:
-        logging.warning("_get_disk_used_percent Failed: " + str(e))
-
-
-def get_metriclist_for_instance(instance_id,region_name,namespace,metric_name,asg_list,mount_point_list):
+                result.append({'instance_id': instance_id, 'region_name': region_name, 'asg_name': asg_name,
+                            'disk_used': disk_usage_percent,'mount_point': mntpoint})
+        except Exception as e:
+           logging.warning("get_disk_used_percent Exception: " + str(e))
+    return result
+#(item['instance_id'],item['region_name'],sto_namespace,sto_metric_name,asg_list, mount_point_list)
+def get_metriclist_for_instance(instance_id,region_name,namespace,metric_name,asg_name,mount_point_list):
     instancemetric = []
     cloudwatch_client = boto3.client('cloudwatch', region_name=region_name)
     resp = cloudwatch_client.list_metrics(
@@ -75,7 +76,6 @@ def get_metriclist_for_instance(instance_id,region_name,namespace,metric_name,as
         ]
     )
     if "Metrics" in resp:
-        for asg_name in asg_list:
             for mountpath in mount_point_list:
                 for metric in resp["Metrics"]:
                     if metric["Namespace"] == namespace and metric["MetricName"] == metric_name:
@@ -85,7 +85,9 @@ def get_metriclist_for_instance(instance_id,region_name,namespace,metric_name,as
                             instancemetric.append(metric)
     else:
         logging.warning("empty response")
-    return {"instance_id":instance_id,"Dimensions":instancemetric }
+    #item['instance_id'],item['region_name'],item['asg_name'],sto_metric_name,sto_namespace,mount_point_list)
+    return {"instance_id":instance_id,"region_name":region_name,"asg_name":asg_name,
+            "metric_name": metric_name,"namespace":namespace,"DimensionsData":instancemetric }
 
 
 
