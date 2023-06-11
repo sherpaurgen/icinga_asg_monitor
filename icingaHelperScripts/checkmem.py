@@ -1,12 +1,10 @@
 #!/monitoringScripts/VENVT/bin/python
-import sys
-import sqlite3
+import sys,sqlite3
+from config import sqlitefilepath
 
-conn = sqlite3.connect('/Users/ush/PycharmProjects/SHV/icinga.db')
+conn = sqlite3.connect(sqlitefilepath)
 cursor = conn.cursor()
-
 instanceid=sys.argv[1]
-
 # Define the query to select the latest record
 query = "SELECT mem_used FROM mem_usage WHERE instance_id = ? ORDER BY id DESC LIMIT 1;"
 rows = cursor.execute(query, (instanceid,))

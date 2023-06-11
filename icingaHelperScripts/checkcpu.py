@@ -1,8 +1,8 @@
 #!/monitoringScripts/VENVT/bin/python
 import sys
 import sqlite3
-
-conn = sqlite3.connect('/Users/ush/PycharmProjects/SHV/icinga.db')
+from config import sqlitefilepath
+conn = sqlite3.connect(sqlitefilepath)
 cursor = conn.cursor()
 
 instanceid=sys.argv[1]

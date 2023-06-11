@@ -3,7 +3,6 @@ import boto3
 import logging
 from datetime import datetime, timedelta
 
-
 class AsgMemoryMonitor:
     def __init__(self,):
         self.logger = self._create_logger()
