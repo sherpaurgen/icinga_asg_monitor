@@ -97,12 +97,11 @@ class AsgCPUMonitor:
                     # Get the instance name if its set
                     for tag in instance['Tags']:
                         if tag['Key'] == 'Name':
-                            instance_name = tag.get('Value', asg_name+"_"+instance_id)
-                            if len(instance_name) < 1:
-                                instance_name = asg_name+"_"+instance_id
+                            name = tag.get('Value')
+                            instance_name=name+"_"+asg_name+"_"+instance_id+"_"+self.region_name
                             break
                         else:
-                            instance_name = asg_name+"_"+instance_id
+                            instance_name = asg_name+"_"+instance_id+"_"+self.region_name
                     return {"instance_id":instance_id,"public_ip":public_ip,"asg_name":asg_name,
                             "dns_name":dns_name,"private_ip":private_ip,"state":state,"instance_name":instance_name}
         except Exception as e:

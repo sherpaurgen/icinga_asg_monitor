@@ -1,12 +1,13 @@
 import sqlite3,subprocess
 from jinja2 import Template
 from helpers.MainLogger import setup_logger
+from helpers.Config import dbfile
 
 logger = setup_logger()
 
 
 def generate_host_file(icingahostfilepath, hosttemplatepath):
-    con = sqlite3.connect('icinga.db')
+    con = sqlite3.connect(dbfile)
     cursor = con.cursor()
     cursor.execute('SELECT * FROM cpu_usage')
     rows = cursor.fetchall()
